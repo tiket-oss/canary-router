@@ -1,0 +1,8 @@
+{
+  "listen-port": 1345,
+
+  "main-target": "http://server-mono.localhost",
+  "canary-target": "http://server-micro.localhost",
+
+  "sidecar-url": "http://sidecar.localhost"
+}
