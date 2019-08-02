@@ -12,12 +12,12 @@ type Proxy struct {
 }
 
 func BuildProxies(config config.Config) (*Proxy, error) {
-	urlMain, err := url.Parse(config.MainTarget)
+	urlMain, err := url.ParseRequestURI(config.MainTarget)
 	if err != nil {
 		return nil, err
 	}
 
-	urlCanary, err := url.Parse(config.CanaryTarget)
+	urlCanary, err := url.ParseRequestURI(config.CanaryTarget)
 	if err != nil {
 		return nil, err
 	}
