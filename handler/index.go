@@ -20,9 +20,13 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 
 	client := &http.Client{Transport: tr}
 
+	return viaProxy(proxies, client, config.SidecarUrl)
+}
+
+func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 
-		sidecarUrl, err := url.ParseRequestURI(config.SidecarUrl)
+		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
 		if err != nil {
 			proxies.Main.ServeHTTP(w, req)
 			return
