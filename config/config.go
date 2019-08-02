@@ -1,8 +1,6 @@
 package config
 
-var GlobalConfig config
-
-type config struct {
+type Config struct {
 	ListenPort          int    `mapstructure:"listen-port"`
 	MainTarget          string `mapstructure:"main-target"`
 	CanaryTarget        string `mapstructure:"canary-target"`

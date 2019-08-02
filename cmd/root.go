@@ -1,15 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"canary-router/config"
 	"canary-router/server"
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
+var appConfig config.Config
 var cfgFile string
 
 func init() {
@@ -33,21 +35,19 @@ func initConfig() {
 		log.Fatalf("Can't read config: %v", err)
 	}
 
-	err := viper.Unmarshal(&config.GlobalConfig)
+	err := viper.Unmarshal(&appConfig)
 	if err != nil {
 		log.Fatalf("Unable to decode into config struct: %v", err)
 	}
 }
 
-
-
 var rootCmd = &cobra.Command{
 	Use:   "canary-router",
 	Short: "A HTTP request forwarding tool",
-	Long: `canary-router forwards HTTP request based on your custom logic`,
+	Long:  `canary-router forwards HTTP request based on your custom logic`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Do Stuff Here
-		return server.Run()
+		return server.Run(appConfig)
 	},
 }
 

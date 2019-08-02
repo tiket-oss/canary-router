@@ -9,7 +9,7 @@ import (
 )
 
 //func Index(w http.ResponseWriter, r *http.Request) {
-func Index(proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
+func Index(config config.Config, proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
 
 	tr := &http.Transport{
 		MaxIdleConns:       10,
@@ -19,10 +19,9 @@ func Index(proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) 
 
 	client := &http.Client{Transport: tr}
 
-
 	return func(w http.ResponseWriter, req *http.Request) {
 
-		sidecarUrl, err := url.Parse(config.GlobalConfig.SidecarUrl)
+		sidecarUrl, err := url.Parse(config.SidecarUrl)
 		if err != nil {
 			proxies.Main.ServeHTTP(w, req)
 			return
@@ -48,4 +47,3 @@ func Index(proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) 
 		return
 	}
 }
-
