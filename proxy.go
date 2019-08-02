@@ -12,20 +12,29 @@ type Proxy struct {
 }
 
 func BuildProxies(config config.Config) (*Proxy, error) {
-	urlMain, err := url.ParseRequestURI(config.MainTarget)
+	proxyMain, err := newReverseProxy(config.MainTarget)
 	if err != nil {
 		return nil, err
 	}
 
-	urlCanary, err := url.ParseRequestURI(config.CanaryTarget)
+	proxyCanary, err := newReverseProxy(config.CanaryTarget)
 	if err != nil {
 		return nil, err
 	}
 
 	proxies := &Proxy{
-		Main:   httputil.NewSingleHostReverseProxy(urlMain),
-		Canary: httputil.NewSingleHostReverseProxy(urlCanary),
+		Main:   proxyMain,
+		Canary: proxyCanary,
 	}
 
 	return proxies, nil
+}
+
+func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
+	url, err := url.ParseRequestURI(target)
+	if err != nil {
+		return nil, err
+	}
+
+	return httputil.NewSingleHostReverseProxy(url), nil
 }
