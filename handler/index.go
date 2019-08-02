@@ -5,6 +5,7 @@ import (
 	canaryrouter "canary-router"
 	"canary-router/config"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -28,6 +29,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
 		if err != nil {
+			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarUrl, err)
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
@@ -35,6 +37,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 		oriUrl := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
+			log.Printf("Failed to read body ori req: %+v", err)
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
@@ -44,6 +47,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		resp, err := client.Do(req)
 		if err != nil {
+			log.Printf("Failed to get resp from sidecar: %+v", err)
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
