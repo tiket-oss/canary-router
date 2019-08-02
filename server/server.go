@@ -6,25 +6,13 @@ import (
 	"canary-router/handler"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 )
 
 func Run(config config.Config) error {
 
-	urlMain, err := url.Parse(config.MainTarget)
+	proxies, err := canaryrouter.BuildProxies(config)
 	if err != nil {
 		return err
-	}
-
-	urlCanary, err := url.Parse(config.CanaryTarget)
-	if err != nil {
-		return err
-	}
-
-	proxies := canaryrouter.Proxy{
-		Main:   httputil.NewSingleHostReverseProxy(urlMain),
-		Canary: httputil.NewSingleHostReverseProxy(urlCanary),
 	}
 
 	http.HandleFunc("/", handler.Index(config, proxies))

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func Index(config config.Config, proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
+func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
 
 	tr := &http.Transport{
 		MaxIdleConns:       10,
