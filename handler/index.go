@@ -4,6 +4,8 @@ import (
 	"bytes"
 	canaryrouter "canary-router"
 	"canary-router/config"
+	"canary-router/sidecar"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -42,15 +44,28 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 			return
 		}
 
-		req.URL = sidecarUrl
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
+		originReq := sidecar.OriginRequest{
+			Method: req.Method,
+			URL:    req.URL.String(),
+			Header: req.Header,
+			Body:   string(oriBody),
+		}
 
-		resp, err := client.Do(req)
+		buf := new(bytes.Buffer)
+		err = json.NewEncoder(buf).Encode(originReq)
+		if err != nil {
+			log.Printf("Failed to encode json: %+v", err)
+			proxies.Main.ServeHTTP(w, req)
+			return
+		}
+
+		resp, err := client.Post(sidecarUrl.String(), "application/json", buf)
 		if err != nil {
 			log.Printf("Failed to get resp from sidecar: %+v", err)
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
+		defer resp.Body.Close()
 
 		req.URL = oriUrl
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
