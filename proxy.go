@@ -1,7 +1,6 @@
 package canaryrouter
 
 import (
-	"canary-router/config"
 	"net/http/httputil"
 	"net/url"
 )
@@ -11,13 +10,13 @@ type Proxy struct {
 	Canary *httputil.ReverseProxy
 }
 
-func BuildProxies(config config.Config) (*Proxy, error) {
-	proxyMain, err := newReverseProxy(config.MainTarget)
+func BuildProxies(mainTargetUrl, canaryTargetUrl string) (*Proxy, error) {
+	proxyMain, err := newReverseProxy(mainTargetUrl)
 	if err != nil {
 		return nil, err
 	}
 
-	proxyCanary, err := newReverseProxy(config.CanaryTarget)
+	proxyCanary, err := newReverseProxy(canaryTargetUrl)
 	if err != nil {
 		return nil, err
 	}

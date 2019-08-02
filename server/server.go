@@ -10,7 +10,7 @@ import (
 
 func Run(config config.Config) error {
 
-	proxies, err := canaryrouter.BuildProxies(config)
+	proxies, err := canaryrouter.BuildProxies(config.MainTarget, config.CanaryTarget)
 	if err != nil {
 		return err
 	}
