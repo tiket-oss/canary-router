@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-//func Index(w http.ResponseWriter, r *http.Request) {
 func Index(config config.Config, proxies canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
 
 	tr := &http.Transport{
