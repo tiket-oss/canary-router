@@ -50,7 +50,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		t.Run(fmt.Sprintf("%d %s", tc.argStatusCode, tc.name), func(t *testing.T) {
 			//t.Parallel()
 
-			backendSidecar, backendSidecarURL := setupServer(t, []byte(""), tc.argStatusCode)
+			backendSidecar, backendSidecarURL := setupServer(t, []byte("Static sidecar body"), tc.argStatusCode)
 			defer backendSidecar.Close()
 
 			thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, backendSidecarURL.String())))
