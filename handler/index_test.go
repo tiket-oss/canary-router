@@ -1,8 +1,6 @@
 package handler
 
 import (
-	canaryrouter "canary-router"
-	"canary-router/sidecar"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +9,9 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/sidecar"
 )
 
 func Test_viaProxy_integration(t *testing.T) {

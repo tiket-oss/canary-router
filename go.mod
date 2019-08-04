@@ -1,4 +1,4 @@
-module canary-router
+module github.com/tiket-libre/canary-router
 
 go 1.12
 

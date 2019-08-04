@@ -1,11 +1,12 @@
 package main
 
 import (
-	"canary-router/config"
-	"canary-router/server"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/server"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

@@ -1,11 +1,12 @@
 package server
 
 import (
-	canaryrouter "canary-router"
-	"canary-router/config"
-	"canary-router/handler"
 	"fmt"
 	"net/http"
+
+	"github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/handler"
 )
 
 func Run(config config.Config) error {
