@@ -43,6 +43,75 @@ func Test_viaProxy_integration(t *testing.T) {
 
 	})
 
+	t.Run("[Given] SideCarURL (always to Main) and X-Canary=true [then] forward to Canary because X-Canary have higher precedence", func(t *testing.T) {
+		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		defer sideCarToMain.Close()
+
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String())))
+		defer thisRouter.Close()
+
+		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "true"}, "foo bar body")
+		if string(gotBody) != backendCanaryBody {
+			t.Errorf("Not forwarded to Canary. Gotbody: %s", string(gotBody))
+		}
+	})
+
+	t.Run("[Given] SideCarURL (always to Main) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Main)", func(t *testing.T) {
+		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		defer sideCarToMain.Close()
+
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String())))
+		defer thisRouter.Close()
+
+		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
+		if string(gotBody) != backendMainBody {
+			t.Errorf("Not forwarded to Main. Gotbody: %s", string(gotBody))
+		}
+	})
+
+	t.Run("[Given] SideCarURL (always to Canary) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Canary)", func(t *testing.T) {
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		defer sideCarToCanary.Close()
+
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String())))
+		defer thisRouter.Close()
+
+		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
+		if string(gotBody) != backendCanaryBody {
+			t.Errorf("Not forwarded to Canary. Gotbody: %s", string(gotBody))
+		}
+	})
+
+	t.Run("Test X-Canary header", func(t *testing.T) {
+		testCases := []struct {
+			name       string
+			argXCanary string
+			wantBody   string
+		}{
+			{name: "X-Canary:true", argXCanary: "true", wantBody: backendCanaryBody},
+			{name: "X-Canary:false", argXCanary: "false", wantBody: backendMainBody},
+
+			{name: "Notvalid X-Canary:1", argXCanary: "1", wantBody: backendMainBody},
+			{name: "Notvalid X-Canary:0", argXCanary: "0", wantBody: backendMainBody},
+			{name: "Notvalid X-Canary:TRUE", argXCanary: "TRUE", wantBody: backendMainBody},
+			{name: "Notvalid X-Canary:FALSE", argXCanary: "FALSE", wantBody: backendMainBody},
+		}
+
+		for _, tc := range testCases {
+			tc := tc
+
+			t.Run(tc.name, func(t *testing.T) {
+				thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "")))
+				defer thisRouter.Close()
+
+				_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": tc.argXCanary}, "foo bar body")
+				if string(gotBody) != tc.wantBody {
+					t.Errorf("X-Canary:%s Gotbody: '%s' Wantbody: '%s'", tc.argXCanary, string(gotBody), tc.wantBody)
+				}
+			})
+		}
+	})
+
 	t.Run("Test supported HTTP methods", func(t *testing.T) {
 		testCases := []struct {
 			name          string

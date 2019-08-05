@@ -30,23 +30,12 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 }
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
-	log.Printf(">>> SIDECAR URL: %s", sidecarUrl)
-
-	if sidecarUrl == "" {
-		log.Printf("SidecarUrl is not defined. Request will be forwarded to Main")
-	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		xCanaryVal := req.Header.Get("X-Canary")
-		log.Printf(">>> xCanaryVal: %+v", xCanaryVal)
 
-		if xCanaryVal != "" {
-			xCanary, err := convertToBool(xCanaryVal)
-			if err != nil {
-				proxies.Main.ServeHTTP(w, req)
-				return
-			}
-
+		xCanary, err := convertToBool(xCanaryVal)
+		if err == nil {
 			if xCanary {
 				proxies.Canary.ServeHTTP(w, req)
 				return
@@ -54,23 +43,15 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 				proxies.Main.ServeHTTP(w, req)
 				return
 			}
-
-		} else {
-			log.Printf(">>> NO xCanaryVal")
-
-			if sidecarUrl == "" {
-				log.Printf(">>> NO sidecarUrl")
-
-				proxies.Main.ServeHTTP(w, req)
-				return
-			} else {
-				log.Printf(">>> sidecarUrl: %+v", sidecarUrl)
-
-				viaProxyWithSidecar(proxies, client, sidecarUrl)(w, req)
-				return
-			}
 		}
 
+		if sidecarUrl == "" {
+			proxies.Main.ServeHTTP(w, req)
+			return
+		} else {
+			viaProxyWithSidecar(proxies, client, sidecarUrl)(w, req)
+			return
+		}
 	}
 }
 
