@@ -32,6 +32,17 @@ func Test_viaProxy_integration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Run("[Given] No sideCarURL provided [then] default to Main", func(t *testing.T) {
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "")))
+		defer thisRouter.Close()
+
+		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", "foo bar body")
+		if string(gotBody) != backendMainBody {
+			t.Errorf("Not forwarded to Main. Gotbody: %s", string(gotBody))
+		}
+
+	})
+
 	t.Run("Test supported HTTP methods", func(t *testing.T) {
 		testCases := []struct {
 			name          string
