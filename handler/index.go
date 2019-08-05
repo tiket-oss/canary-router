@@ -11,8 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/tiket-libre/canary-router"
+	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/sidecar"
 )
 
@@ -58,6 +59,9 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 
+		requestRecord := instrumentation.NewRequestRecord()
+		defer requestRecord.Register()
+
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
 		if err != nil {
 			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarUrl, err)
@@ -101,10 +105,13 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
+			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
+			requestRecord.Target = "canary"
 			proxies.Canary.ServeHTTP(w, req)
 		default:
+			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
 
