@@ -142,3 +142,32 @@ func restClientCall(t *testing.T, client *http.Client, method, url, payloadBody 
 
 	return resp, gotBody
 }
+
+func Test_convertToBool(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    string
+		want    bool
+		wantErr bool
+	}{
+		{name: "'true'", args: "true", want: true, wantErr: false},
+		{name: "'false'", args: "false", want: false, wantErr: false},
+		{name: "'t'", args: "t", want: false, wantErr: true},
+		{name: "'f'", args: "f", want: false, wantErr: true},
+		{name: "'1'", args: "1", want: false, wantErr: true},
+		{name: "'0'", args: "0", want: false, wantErr: true},
+		{name: "'TRUE'", args: "TRUE", want: false, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := convertToBool(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("convertToBool() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("convertToBool() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
