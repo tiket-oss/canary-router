@@ -3,10 +3,12 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/tiket-libre/canary-router"
@@ -28,6 +30,32 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 }
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		xCanaryVal := req.Header.Get("X-Canary")
+
+		xCanary, err := convertToBool(xCanaryVal)
+		if err == nil {
+			if xCanary {
+				proxies.Canary.ServeHTTP(w, req)
+				return
+			} else {
+				proxies.Main.ServeHTTP(w, req)
+				return
+			}
+		}
+
+		if sidecarUrl == "" {
+			proxies.Main.ServeHTTP(w, req)
+			return
+		} else {
+			viaProxyWithSidecar(proxies, client, sidecarUrl)(w, req)
+			return
+		}
+	}
+}
+
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
@@ -82,4 +110,12 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		return
 	}
+}
+
+func convertToBool(boolStr string) (bool, error) {
+	if boolStr == "true" || boolStr == "false" {
+		return strconv.ParseBool(boolStr)
+	}
+
+	return false, errors.New("neither 'true' nor 'false'")
 }
