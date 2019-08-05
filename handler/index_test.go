@@ -77,20 +77,7 @@ func Test_viaProxy_integration(t *testing.T) {
 					t.Run(m, func(t *testing.T) {
 						//t.Parallel()
 
-						req, err := newRequest(m, thisRouter.URL+"/foo/bar", originBodyContent)
-						if err != nil {
-							t.Fatal(err)
-						}
-
-						resp, err := thisRouter.Client().Do(req)
-						if err != nil {
-							t.Fatal(err)
-						}
-
-						gotBody, err := ioutil.ReadAll(resp.Body)
-						if err != nil {
-							t.Fatal(err)
-						}
+						_, gotBody := restClientCall(t, thisRouter.Client(), m, thisRouter.URL+"/foo/bar", originBodyContent)
 
 						if string(gotBody) != string(tc.wantBody) {
 							t.Errorf("argStatusCode = %d got = %+v; want = %+v", tc.argStatusCode, gotBody, tc.wantBody)
@@ -135,4 +122,23 @@ func newRequest(method, url, body string) (*http.Request, error) {
 		return nil, err
 	}
 	return req, nil
+}
+
+func restClientCall(t *testing.T, client *http.Client, method, url, payloadBody string) (*http.Response, []byte) {
+	req, err := newRequest(method, url, payloadBody)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gotBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return resp, gotBody
 }
