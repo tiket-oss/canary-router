@@ -172,6 +172,7 @@ func Test_convertToBool(t *testing.T) {
 		{name: "'1'", args: "1", want: false, wantErr: true},
 		{name: "'0'", args: "0", want: false, wantErr: true},
 		{name: "'TRUE'", args: "TRUE", want: false, wantErr: true},
+		{name: "empty", args: "", want: false, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
