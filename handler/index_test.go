@@ -36,7 +36,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "")))
 		defer thisRouter.Close()
 
-		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", "foo bar body")
+		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
 		if string(gotBody) != backendMainBody {
 			t.Errorf("Not forwarded to Main. Gotbody: %s", string(gotBody))
 		}
@@ -88,7 +88,7 @@ func Test_viaProxy_integration(t *testing.T) {
 					t.Run(m, func(t *testing.T) {
 						//t.Parallel()
 
-						_, gotBody := restClientCall(t, thisRouter.Client(), m, thisRouter.URL+"/foo/bar", originBodyContent)
+						_, gotBody := restClientCall(t, thisRouter.Client(), m, thisRouter.URL+"/foo/bar", map[string]string{}, originBodyContent)
 
 						if string(gotBody) != string(tc.wantBody) {
 							t.Errorf("argStatusCode = %d got = %+v; want = %+v", tc.argStatusCode, gotBody, tc.wantBody)
@@ -135,10 +135,14 @@ func newRequest(method, url, body string) (*http.Request, error) {
 	return req, nil
 }
 
-func restClientCall(t *testing.T, client *http.Client, method, url, payloadBody string) (*http.Response, []byte) {
+func restClientCall(t *testing.T, client *http.Client, method, url string, headers map[string]string, payloadBody string) (*http.Response, []byte) {
 	req, err := newRequest(method, url, payloadBody)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 
 	resp, err := client.Do(req)
