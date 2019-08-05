@@ -9,8 +9,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/tiket-libre/canary-router"
+	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/sidecar"
 )
 
@@ -29,6 +30,9 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
+
+		requestRecord := instrumentation.NewRequestRecord()
+		defer requestRecord.Register()
 
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
 		if err != nil {
@@ -73,10 +77,13 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
+			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
+			requestRecord.Target = "canary"
 			proxies.Canary.ServeHTTP(w, req)
 		default:
+			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
 
