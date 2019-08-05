@@ -3,10 +3,12 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/tiket-libre/canary-router"
@@ -28,6 +30,51 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 }
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
+	log.Printf(">>> SIDECAR URL: %s", sidecarUrl)
+
+	if sidecarUrl == "" {
+		log.Printf("SidecarUrl is not defined. Request will be forwarded to Main")
+	}
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		xCanaryVal := req.Header.Get("X-Canary")
+		log.Printf(">>> xCanaryVal: %+v", xCanaryVal)
+
+		if xCanaryVal != "" {
+			xCanary, err := convertToBool(xCanaryVal)
+			if err != nil {
+				proxies.Main.ServeHTTP(w, req)
+				return
+			}
+
+			if xCanary {
+				proxies.Canary.ServeHTTP(w, req)
+				return
+			} else {
+				proxies.Main.ServeHTTP(w, req)
+				return
+			}
+
+		} else {
+			log.Printf(">>> NO xCanaryVal")
+
+			if sidecarUrl == "" {
+				log.Printf(">>> NO sidecarUrl")
+
+				proxies.Main.ServeHTTP(w, req)
+				return
+			} else {
+				log.Printf(">>> sidecarUrl: %+v", sidecarUrl)
+
+				viaProxyWithSidecar(proxies, client, sidecarUrl)(w, req)
+				return
+			}
+		}
+
+	}
+}
+
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
@@ -82,4 +129,12 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		return
 	}
+}
+
+func convertToBool(boolStr string) (bool, error) {
+	if boolStr == "true" || boolStr == "false" {
+		return strconv.ParseBool(boolStr)
+	}
+
+	return false, errors.New("neither 'true' nor 'false'")
 }
