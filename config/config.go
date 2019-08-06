@@ -7,10 +7,15 @@ type Config struct {
 	SidecarUrl          string                `mapstructure:"sidecar-url"`
 	MainSidecarStatus   int                   `mapstructure:"main-sidecar-status"`
 	CanarySidecarStatus int                   `mapstructure:"canary-sidecar-status"`
+	CircuitBreaker      CircuitBreaker        `mapstructure:"circuit-breaker"`
 	Instrumentation     InstrumentationConfig `mapstructure:"instrumentation"`
 }
 
 type InstrumentationConfig struct {
 	Host string `mapstructure:"host"`
 	Port string `mapstructure:"port"`
+}
+
+type CircuitBreaker struct {
+	RequestLimitCanary uint64 `mapstructure:"request-limit-canary"`
 }

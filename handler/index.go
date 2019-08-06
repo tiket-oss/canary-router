@@ -3,10 +3,13 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
+	"sync/atomic"
 	"time"
 
 	canaryrouter "github.com/tiket-libre/canary-router"
@@ -25,14 +28,50 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 
 	client := &http.Client{Transport: tr}
 
-	return viaProxy(proxies, client, config.SidecarUrl)
+	return viaProxy(proxies, client, config.SidecarUrl, config.CircuitBreaker.RequestLimitCanary)
 }
 
-func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string) func(w http.ResponseWriter, req *http.Request) {
+func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string, requestLimitCanary uint64) func(w http.ResponseWriter, req *http.Request) {
+
+	var counterCanary uint64
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		xCanaryVal := req.Header.Get("X-Canary")
+
+		xCanary, err := convertToBool(xCanaryVal)
+		if err == nil {
+			if xCanary {
+				proxies.Canary.ServeHTTP(w, req)
+				return
+			} else {
+				proxies.Main.ServeHTTP(w, req)
+				return
+			}
+		}
+
+		if sidecarUrl == "" {
+			proxies.Main.ServeHTTP(w, req)
+			return
+		} else {
+			viaProxyWithSidecar(proxies, client, sidecarUrl, requestLimitCanary, &counterCanary)(w, req)
+			return
+		}
+	}
+}
+
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string, limitCanary uint64, counterCanary *uint64) func(w http.ResponseWriter, req *http.Request) {
+
 	return func(w http.ResponseWriter, req *http.Request) {
 
 		requestRecord := instrumentation.NewRequestRecord()
 		defer requestRecord.Register()
+
+		//log.Printf(">>> GOT LIMIT. limitCanary: %d getCounter: %d", limitCanary, getCounter(&counterCanary))
+
+		if limitCanary != 0 && (getCounter(counterCanary) > (limitCanary - 1)) {
+			proxies.Main.ServeHTTP(w, req)
+			return
+		}
 
 		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
 		if err != nil {
@@ -80,6 +119,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
+			incCounter(counterCanary)
 			requestRecord.Target = "canary"
 			proxies.Canary.ServeHTTP(w, req)
 		default:
@@ -89,4 +129,20 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 
 		return
 	}
+}
+
+func incCounter(counter *uint64) {
+	atomic.AddUint64(counter, 1)
+}
+
+func getCounter(counter *uint64) uint64 {
+	return atomic.LoadUint64(counter)
+}
+
+func convertToBool(boolStr string) (bool, error) {
+	if boolStr == "true" || boolStr == "false" {
+		return strconv.ParseBool(boolStr)
+	}
+
+	return false, errors.New("neither 'true' nor 'false'")
 }
