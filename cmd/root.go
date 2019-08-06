@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/server"
 
 	"github.com/spf13/cobra"
@@ -47,14 +46,16 @@ var rootCmd = &cobra.Command{
 	Short: "A HTTP request forwarding tool",
 	Long:  `canary-router forwards HTTP request based on your custom logic`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Do Stuff Here
+		if err := instrumentation.Initialize(appConfig.Instrumentation); err != nil {
+			return err
+		}
+
 		return server.Run(appConfig)
 	},
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }
