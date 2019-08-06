@@ -177,21 +177,6 @@ func Test_viaProxy_integration(t *testing.T) {
 			})
 		}
 	})
-}
-
-func Test_viaProxy_circuitbreaker_integration(t *testing.T) {
-	backendMainBody := "Hello, I'm Main!"
-	backendMain, backendMainURL := setupServer(t, []byte(backendMainBody), http.StatusOK, func(r *http.Request) {})
-	defer backendMain.Close()
-
-	backendCanaryBody := "Hello, I'm Canary!"
-	backendCanary, backendCanaryURL := setupServer(t, []byte(backendCanaryBody), http.StatusOK, func(r *http.Request) {})
-	defer backendCanary.Close()
-
-	proxies, err := canaryrouter.BuildProxies(backendMainURL.String(), backendCanaryURL.String())
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	t.Run("Test circuitbreaker with canary request limit", func(t *testing.T) {
 		canaryLimit := uint64(10)
