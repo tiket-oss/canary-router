@@ -1,9 +1,10 @@
 TARGET = canary-router
 
-.PHONY: get-dev-deps
+.PHONY: get-tools
 get-tools:
 	GO111MODULE=off go get -u -v github.com/Arkweid/lefthook
 	GO111MODULE=off go get -u -v golang.org/x/lint/golint
+	GO111MODULE=off go get -u -v github.com/golangci/golangci-lint/cmd/golangci-lint
 
 .PHONY: test
 test:
