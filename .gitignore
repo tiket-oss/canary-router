@@ -6,3 +6,6 @@
 
 # Ignore created binary
 bin/
+
+# Ignore config file
+config.json
