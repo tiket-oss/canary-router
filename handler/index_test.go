@@ -3,21 +3,22 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/sidecar"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
-
-	"github.com/tiket-libre/canary-router"
-	"github.com/tiket-libre/canary-router/sidecar"
 )
 
 func Test_viaProxy_integration(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
+
+	noCanaryLimit := uint64(0)
 
 	backendMainBody := "Hello, I'm Main!"
 	backendMain, backendMainURL := setupServer(t, []byte(backendMainBody), http.StatusOK, func(r *http.Request) {})
@@ -33,7 +34,7 @@ func Test_viaProxy_integration(t *testing.T) {
 	}
 
 	t.Run("[Given] No sideCarURL provided [then] default to Main", func(t *testing.T) {
-		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "")))
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "", noCanaryLimit)))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
@@ -47,7 +48,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
-		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String())))
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String(), noCanaryLimit)))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "true"}, "foo bar body")
@@ -60,7 +61,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
-		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String())))
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String(), noCanaryLimit)))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
@@ -73,7 +74,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		sideCarToCanary, sideCarToCanaryURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
-		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String())))
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String(), noCanaryLimit)))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
@@ -101,7 +102,7 @@ func Test_viaProxy_integration(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "")))
+				thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, "", noCanaryLimit)))
 				defer thisRouter.Close()
 
 				_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": tc.argXCanary}, "foo bar body")
@@ -148,7 +149,7 @@ func Test_viaProxy_integration(t *testing.T) {
 				})
 				defer backendSidecar.Close()
 
-				thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, backendSidecarURL.String())))
+				thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, backendSidecarURL.String(), noCanaryLimit)))
 				defer thisRouter.Close()
 
 				originBodyContent := "This is DUMMY body"
@@ -174,6 +175,51 @@ func Test_viaProxy_integration(t *testing.T) {
 				}
 
 			})
+		}
+	})
+}
+
+func Test_viaProxy_circuitbreaker_integration(t *testing.T) {
+	backendMainBody := "Hello, I'm Main!"
+	backendMain, backendMainURL := setupServer(t, []byte(backendMainBody), http.StatusOK, func(r *http.Request) {})
+	defer backendMain.Close()
+
+	backendCanaryBody := "Hello, I'm Canary!"
+	backendCanary, backendCanaryURL := setupServer(t, []byte(backendCanaryBody), http.StatusOK, func(r *http.Request) {})
+	defer backendCanary.Close()
+
+	proxies, err := canaryrouter.BuildProxies(backendMainURL.String(), backendCanaryURL.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("Test circuitbreaker with canary request limit", func(t *testing.T) {
+		canaryLimit := uint64(10)
+
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		defer sideCarToCanary.Close()
+
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String(), canaryLimit)))
+		defer thisRouter.Close()
+
+		gotCanaryCount, gotMainCount := 0, 0
+
+		totalRequest := 50
+		for i := 0; i < totalRequest; i++ {
+			_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
+
+			switch string(gotBody) {
+			case backendMainBody:
+				gotMainCount++
+			case backendCanaryBody:
+				gotCanaryCount++
+			default:
+				t.Fatal("Not supposed to be other content")
+			}
+		}
+
+		if (uint64(gotCanaryCount) != canaryLimit) || (gotMainCount != (totalRequest - gotCanaryCount)) {
+			t.Errorf("gotCanaryCount:%d gotMainCount:%d canaryLimit:%d totalRequest:%d", gotCanaryCount, gotMainCount, canaryLimit, totalRequest)
 		}
 	})
 }
