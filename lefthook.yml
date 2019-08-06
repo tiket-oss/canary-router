@@ -1,6 +1,9 @@
 pre-commit:
   parallel: true
   commands:
-    lint:
+    golint:
       glob: "*.{go}"
       run: golint -set_exit_status {staged_files}
+    golangci-lint:
+      glob: "*.{go}"
+      run: golangci-lint run {staged_files}
