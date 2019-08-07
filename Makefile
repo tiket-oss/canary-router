@@ -21,11 +21,11 @@ lint:
 
 .PHONY: test
 test:
-	go test -v -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
+	go test -v -race -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
 
 .PHONY: unit-test
 unit-test:
-	go test -v -short -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
+	go test -v -race -short -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
 
 .PHONY: integration-test
 integration-test:
