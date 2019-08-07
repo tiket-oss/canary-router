@@ -20,11 +20,11 @@ lint:
 
 .PHONY: test
 test:
-	go test -v ./...
+	go test -v -cover ./...
 
 .PHONY: unit-test
 unit-test:
-	go test -v -short ./...
+	go test -v -short -cover ./...
 
 .PHONY: integration-test
 integration-test:

@@ -5,18 +5,22 @@ import (
 	"net/url"
 )
 
+// Proxy holds the reference to instance of Main and Canary httputil.ReverseProxy
+// that is going to be used to route traffic
 type Proxy struct {
 	Main   *httputil.ReverseProxy
 	Canary *httputil.ReverseProxy
 }
 
-func BuildProxies(mainTargetUrl, canaryTargetUrl string) (*Proxy, error) {
-	proxyMain, err := newReverseProxy(mainTargetUrl)
+// BuildProxies constructs a Proxy object with mainTargetURL as the URL for Main proxy
+// and canaryTargetURL as the URL for Canary proxy
+func BuildProxies(mainTargetURL, canaryTargetURL string) (*Proxy, error) {
+	proxyMain, err := newReverseProxy(mainTargetURL)
 	if err != nil {
 		return nil, err
 	}
 
-	proxyCanary, err := newReverseProxy(canaryTargetUrl)
+	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
 		return nil, err
 	}

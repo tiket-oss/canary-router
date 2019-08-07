@@ -18,7 +18,8 @@ import (
 	"github.com/tiket-libre/canary-router/sidecar"
 )
 
-func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.ResponseWriter, *http.Request) {
+// Index returns a http.HandlerFunc which will route incoming traffics using provided proxies
+func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
 
 	tr := &http.Transport{
 		MaxIdleConns:       10,
@@ -28,10 +29,10 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) func(http.Response
 
 	client := &http.Client{Transport: tr}
 
-	return viaProxy(proxies, client, config.SidecarUrl, config.CircuitBreaker.RequestLimitCanary)
+	return viaProxy(proxies, client, config.SidecarURL, config.CircuitBreaker.RequestLimitCanary)
 }
 
-func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string, requestLimitCanary uint64) func(w http.ResponseWriter, req *http.Request) {
+func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, requestLimitCanary uint64) http.HandlerFunc {
 
 	var counterCanary uint64
 
@@ -42,24 +43,22 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl strin
 		if err == nil {
 			if xCanary {
 				proxies.Canary.ServeHTTP(w, req)
-				return
 			} else {
 				proxies.Main.ServeHTTP(w, req)
-				return
 			}
+
+			return
 		}
 
-		if sidecarUrl == "" {
+		if sidecarURL == "" {
 			proxies.Main.ServeHTTP(w, req)
-			return
 		} else {
-			viaProxyWithSidecar(proxies, client, sidecarUrl, requestLimitCanary, &counterCanary)(w, req)
-			return
+			viaProxyWithSidecar(proxies, client, sidecarURL, requestLimitCanary, &counterCanary)(w, req)
 		}
 	}
 }
 
-func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarUrl string, limitCanary uint64, counterCanary *uint64) func(w http.ResponseWriter, req *http.Request) {
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, limitCanary uint64, counterCanary *uint64) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
 
@@ -73,14 +72,14 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			return
 		}
 
-		sidecarUrl, err := url.ParseRequestURI(sidecarUrl)
+		sidecarURL, err := url.ParseRequestURI(sidecarURL)
 		if err != nil {
-			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarUrl, err)
+			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarURL, err)
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
 
-		oriUrl := req.URL
+		oriUR := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Failed to read body ori req: %+v", err)
@@ -103,7 +102,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			return
 		}
 
-		resp, err := client.Post(sidecarUrl.String(), "application/json", buf)
+		resp, err := client.Post(sidecarURL.String(), "application/json", buf)
 		if err != nil {
 			log.Printf("Failed to get resp from sidecar: %+v", err)
 			proxies.Main.ServeHTTP(w, req)
@@ -111,7 +110,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 		}
 		defer resp.Body.Close()
 
-		req.URL = oriUrl
+		req.URL = oriUR
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
 
 		switch resp.StatusCode {
@@ -126,8 +125,6 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
-
-		return
 	}
 }
 
