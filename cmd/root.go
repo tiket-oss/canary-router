@@ -53,9 +53,3 @@ var rootCmd = &cobra.Command{
 		return server.Run(appConfig)
 	},
 }
-
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
-}
