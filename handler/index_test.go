@@ -19,6 +19,7 @@ func Test_viaProxy_integration(t *testing.T) {
 		t.SkipNow()
 	}
 
+	emptyBodyBytes := []byte("")
 	noCanaryLimit := uint64(0)
 
 	backendMainBody := "Hello, I'm Main!"
@@ -46,7 +47,7 @@ func Test_viaProxy_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary=true [then] forward to Canary because X-Canary have higher precedence", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String(), noCanaryLimit)))
@@ -59,7 +60,7 @@ func Test_viaProxy_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Main)", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToMainURL.String(), noCanaryLimit)))
@@ -72,7 +73,7 @@ func Test_viaProxy_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Canary) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Canary)", func(t *testing.T) {
-		sideCarToCanary, sideCarToCanaryURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
 		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String(), noCanaryLimit)))
@@ -138,7 +139,7 @@ func Test_viaProxy_integration(t *testing.T) {
 
 				bodyResults := map[string]sidecar.OriginRequest{}
 
-				backendSidecar, backendSidecarURL := setupServer(t, []byte("Static sidecar body"), tc.argStatusCode, func(r *http.Request) {
+				backendSidecar, backendSidecarURL := setupServer(t, emptyBodyBytes, tc.argStatusCode, func(r *http.Request) {
 					decoder := json.NewDecoder(r.Body)
 					var oriReq sidecar.OriginRequest
 					err := decoder.Decode(&oriReq)
@@ -182,7 +183,7 @@ func Test_viaProxy_integration(t *testing.T) {
 	t.Run("Test circuitbreaker with canary request limit", func(t *testing.T) {
 		canaryLimit := uint64(10)
 
-		sideCarToCanary, sideCarToCanaryURL := setupServer(t, []byte("Static sidecar body"), canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
 		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String(), canaryLimit)))
@@ -219,7 +220,7 @@ func setupServer(t *testing.T, bodyResp []byte, statusCode int, middleFunc func(
 		w.WriteHeader(statusCode)
 		_, err := w.Write(bodyResp)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("Method:%s Status:%d Body: %s Err:%+v", r.Method, statusCode, bodyResp, err)
 		}
 	}))
 
