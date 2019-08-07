@@ -55,8 +55,6 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 		} else {
 			viaProxyWithSidecar(proxies, client, sidecarURL, requestLimitCanary, &counterCanary)(w, req)
 		}
-
-		return
 	}
 }
 
@@ -127,8 +125,6 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			requestRecord.Target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
-
-		return
 	}
 }
 

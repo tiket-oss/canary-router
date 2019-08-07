@@ -217,7 +217,10 @@ func setupServer(t *testing.T, bodyResp []byte, statusCode int, middleFunc func(
 		middleFunc(r)
 
 		w.WriteHeader(statusCode)
-		w.Write(bodyResp)
+		_, err := w.Write(bodyResp)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 
 	serverURL, err := url.Parse(server.URL)
