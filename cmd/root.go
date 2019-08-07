@@ -21,14 +21,11 @@ func init() {
 
 func initConfig() {
 	// Don't forget to read config either from cfgFile or from home directory!
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	}
+	viper.SetConfigFile(cfgFile)
 
 	log.Printf("=== config file: %s", cfgFile)
 
-	//viper.SetConfigType("json")
+	viper.SetConfigType("json")
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {

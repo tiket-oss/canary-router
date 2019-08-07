@@ -3,14 +3,15 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tiket-libre/canary-router"
-	"github.com/tiket-libre/canary-router/sidecar"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	canaryrouter "github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/sidecar"
 )
 
 func Test_viaProxy_integration(t *testing.T) {
@@ -219,12 +220,12 @@ func setupServer(t *testing.T, bodyResp []byte, statusCode int, middleFunc func(
 		w.Write(bodyResp)
 	}))
 
-	serverUrl, err := url.Parse(server.URL)
+	serverURL, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return server, serverUrl
+	return server, serverURL
 }
 
 func newRequest(method, url, body string) (*http.Request, error) {
