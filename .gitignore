@@ -9,3 +9,6 @@ bin/
 
 # Ignore config file
 config.json
+
+# Ignore code coverage report
+coverage.txt

@@ -1,4 +1,5 @@
 TARGET = canary-router
+COVERAGE_REPORT = coverage.txt
 
 .PHONY: get-tools
 get-tools:
@@ -20,11 +21,11 @@ lint:
 
 .PHONY: test
 test:
-	go test -v -cover ./...
+	go test -v -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
 
 .PHONY: unit-test
 unit-test:
-	go test -v -short -cover ./...
+	go test -v -short -coverprofile=$(COVERAGE_REPORT) -covermode atomic ./...
 
 .PHONY: integration-test
 integration-test:
