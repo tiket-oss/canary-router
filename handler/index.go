@@ -35,10 +35,18 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, requestLimitCanary uint64) http.HandlerFunc {
 
 	var counterCanary uint64
+	var handlerFunc http.HandlerFunc
+
+	if sidecarURL == "" {
+		handlerFunc = proxies.Main.ServeHTTP
+	} else {
+		handlerFunc = viaProxyWithSidecar(proxies, client, sidecarURL, requestLimitCanary, &counterCanary)
+	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		xCanaryVal := req.Header.Get("X-Canary")
 
+		// NOTE: Override handlerFunc if X-Canary header is provided
+		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
 			if xCanary {
@@ -46,15 +54,10 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 			} else {
 				proxies.Main.ServeHTTP(w, req)
 			}
-
 			return
 		}
 
-		if sidecarURL == "" {
-			proxies.Main.ServeHTTP(w, req)
-		} else {
-			viaProxyWithSidecar(proxies, client, sidecarURL, requestLimitCanary, &counterCanary)(w, req)
-		}
+		handlerFunc(w, req)
 	}
 }
 
