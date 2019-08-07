@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/tiket-libre/canary-router"
+	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/handler"
 )
 
+// Run initialize a new HTTP server
 func Run(config config.Config) error {
 
 	proxies, err := canaryrouter.BuildProxies(config.MainTarget, config.CanaryTarget)
