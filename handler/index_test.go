@@ -191,19 +191,38 @@ func Test_viaProxy_integration(t *testing.T) {
 
 		gotCanaryCount, gotMainCount := 0, 0
 
-		totalRequest := 50
-		for i := 0; i < totalRequest; i++ {
-			_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
+		chanMainHit := make(chan int, 10)
+		chanCanaryHit := make(chan int, 10)
 
-			switch string(gotBody) {
-			case backendMainBody:
-				gotMainCount++
-			case backendCanaryBody:
-				gotCanaryCount++
-			default:
-				t.Fatal("Not supposed to be other content")
+		totalRequest := 100
+		for i := 0; i < totalRequest; i++ {
+
+			go func(chanMainHit chan int, chanCanaryHit chan int) {
+
+				_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
+				switch string(gotBody) {
+				case backendMainBody:
+					chanMainHit <- 1
+				case backendCanaryBody:
+					chanCanaryHit <- 1
+				default:
+					t.Fatal("Not supposed to be other content")
+				}
+			}(chanMainHit, chanCanaryHit)
+
+		}
+
+		for i := 0; i < totalRequest; i++ {
+			select {
+			case mainHit := <-chanMainHit:
+				gotMainCount += mainHit
+			case canaryHit := <-chanCanaryHit:
+				gotCanaryCount += canaryHit
 			}
 		}
+
+		close(chanMainHit)
+		close(chanCanaryHit)
 
 		if (uint64(gotCanaryCount) != canaryLimit) || (gotMainCount != (totalRequest - gotCanaryCount)) {
 			t.Errorf("gotCanaryCount:%d gotMainCount:%d canaryLimit:%d totalRequest:%d", gotCanaryCount, gotMainCount, canaryLimit, totalRequest)
