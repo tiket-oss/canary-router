@@ -8,9 +8,9 @@ import (
 	"go.opencensus.io/tag"
 )
 
-type StartTimeKey string
+type contextKey string
 
-var startTimeKey = StartTimeKey("startTime")
+var startTimeKey = contextKey("startTime")
 
 var (
 	// MLatencyMs records the time it took for request to be served (routed to proxy)
