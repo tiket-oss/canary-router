@@ -1,0 +1,58 @@
+@startuml
+cloud cloud [
+    ~~~
+]
+node haproxy [
+    HA Proxy :7070
+]
+
+frame Router01 {
+    node canary_router_01 [
+        Canary Router 01 :8010
+    ]
+
+    node canary_sidecar_01 [
+        Canary Sidecar 01 :9010
+    ]
+}
+
+frame Router02 {
+    node canary_router_02 [
+        Canary Router 02 :8020
+    ]
+
+    node canary_sidecar_02 [
+        Canary Sidecar 02 :9020
+    ]
+}
+
+
+node monolith [
+    Monolith :10000
+]
+node microservices [
+    Microservices :10100
+]
+
+node prometheus [
+    Prometheus :9090
+]
+
+cloud -- haproxy
+haproxy --^ canary_router_01 : (1) node 01
+haproxy --^ canary_router_02 : (2) node 02
+haproxy ==^ monolith : (3) node backup 
+
+'canary_router_01 -- canary_sidecar_01
+'canary_router_02 -- canary_sidecar_02
+
+canary_router_01 --> monolith
+canary_router_01 --> microservices
+
+canary_router_02 --> monolith
+canary_router_02 --> microservices
+
+Router01 .. prometheus
+Router02 .. prometheus
+
+@enduml
