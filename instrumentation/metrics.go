@@ -2,12 +2,15 @@ package instrumentation
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 )
+
+type StartTimeKey string
+
+var startTimeKey = StartTimeKey("startTime")
 
 var (
 	// MLatencyMs records the time it took for request to be served (routed to proxy)
@@ -17,31 +20,24 @@ var (
 	KeyTarget, _ = tag.NewKey("target")
 )
 
-// RequestRecord holds additional information to record request related metrics
-type RequestRecord struct {
-	Target    string
-	StartTIme time.Time
-}
-
-// NewRequestRecord initialize a RequestRecord struct with startTime
-// set as time.Now()
-func NewRequestRecord() *RequestRecord {
-	return &RequestRecord{
-		StartTIme: time.Now(),
-		Target:    "main",
-	}
-}
-
 func sinceInMilliseconds(startTime time.Time) float64 {
 	return float64(time.Since(startTime).Nanoseconds()) / 1e6
 }
 
-// Register add a new Measurement to Metrics by the RequestRecord field values
-func (r *RequestRecord) Register() {
-	ctx, err := tag.New(context.Background(), tag.Insert(KeyTarget, r.Target))
-	if err != nil {
-		log.Print(err)
-	}
+// InitializeLatencyTracking ...
+func InitializeLatencyTracking(ctx context.Context) context.Context {
+	return context.WithValue(ctx, startTimeKey, time.Now())
+}
 
-	stats.Record(ctx, MLatencyMs.M(sinceInMilliseconds(r.StartTIme)))
+// RecordLatency ...
+func RecordLatency(ctx context.Context) {
+	startTimeVal := ctx.Value(startTimeKey)
+	if startTime, ok := startTimeVal.(time.Time); ok {
+		stats.Record(ctx, MLatencyMs.M(sinceInMilliseconds(startTime)))
+	}
+}
+
+// AddTargetTag ...
+func AddTargetTag(ctx context.Context, target string) (context.Context, error) {
+	return tag.New(ctx, tag.Upsert(KeyTarget, target))
 }
