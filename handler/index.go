@@ -51,11 +51,20 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
-			defer instrumentation.RecordLatency(req.Context())
+			var target string
+			defer func() {
+				ctx, err := instrumentation.AddTargetTag(req.Context(), target)
+				if err != nil {
+					log.Println(err)
+				}
+				instrumentation.RecordLatency(ctx)
+			}()
 
 			if xCanary {
+				target = "canary"
 				proxies.Canary.ServeHTTP(w, req)
 			} else {
+				target = "main"
 				proxies.Main.ServeHTTP(w, req)
 			}
 			return
