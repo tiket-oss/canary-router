@@ -220,7 +220,7 @@ func Test_viaProxy_integration(t *testing.T) {
 			i := i
 			go func(chanMainHit chan int, chanCanaryHit chan int) {
 
-				resp, gotBody := restClientCall(t, &http.Client{}, http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, fmt.Sprintf("%d", i))
+				resp, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, fmt.Sprintf("%d", i))
 				defer resp.Body.Close()
 				switch string(gotBody) {
 				case backendMainBody:
