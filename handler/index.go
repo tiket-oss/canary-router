@@ -109,7 +109,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			return
 		}
 
-		oriUR := req.URL
+		oriURL := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Failed to read body ori req: %+v", err)
@@ -140,7 +140,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 		}
 		defer resp.Body.Close()
 
-		req.URL = oriUR
+		req.URL = oriURL
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
 
 		switch resp.StatusCode {
