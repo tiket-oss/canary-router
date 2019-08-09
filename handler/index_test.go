@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -181,12 +182,32 @@ func Test_viaProxy_integration(t *testing.T) {
 	})
 
 	t.Run("Test circuitbreaker with canary request limit", func(t *testing.T) {
-		canaryLimit := uint64(10)
+		canaryLimit := uint64(45)
 
-		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		sideCarToCanary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+			decoder := json.NewDecoder(req.Body)
+			var oriReq sidecar.OriginRequest
+			err := decoder.Decode(&oriReq)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			i, err := strconv.Atoi(string(oriReq.Body))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if i%2 == 0 {
+				w.WriteHeader(canaryrouter.StatusCodeMain)
+			} else {
+				w.WriteHeader(canaryrouter.StatusCodeCanary)
+			}
+
+		}))
 		defer sideCarToCanary.Close()
 
-		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanaryURL.String(), canaryLimit)))
+		thisRouter := httptest.NewServer(http.HandlerFunc(viaProxy(proxies, &http.Client{}, sideCarToCanary.URL, canaryLimit)))
 		defer thisRouter.Close()
 
 		gotCanaryCount, gotMainCount := 0, 0
@@ -195,11 +216,12 @@ func Test_viaProxy_integration(t *testing.T) {
 		chanCanaryHit := make(chan int, 10)
 
 		totalRequest := 100
-		for i := 0; i < totalRequest; i++ {
-
+		for i := 1; i <= totalRequest; i++ {
+			i := i
 			go func(chanMainHit chan int, chanCanaryHit chan int) {
 
-				_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
+				resp, gotBody := restClientCall(t, &http.Client{}, http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, fmt.Sprintf("%d", i))
+				defer resp.Body.Close()
 				switch string(gotBody) {
 				case backendMainBody:
 					chanMainHit <- 1
