@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/tiket-libre/canary-router"
+	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/sidecar"
 )
 

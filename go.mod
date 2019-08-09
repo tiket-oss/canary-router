@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
+	github.com/juju/ratelimit v1.0.1
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
 	go.opencensus.io v0.22.0

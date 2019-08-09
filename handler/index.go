@@ -9,14 +9,16 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync/atomic"
 	"time"
 
+	"github.com/juju/ratelimit"
 	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/sidecar"
 )
+
+const infinityDuration time.Duration = 0x7fffffffffffffff
 
 // Index returns a http.HandlerFunc which will route incoming traffics using provided proxies
 func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
@@ -34,13 +36,19 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, requestLimitCanary uint64) http.HandlerFunc {
 
-	var counterCanary uint64
+	var isCanaryLimited bool
+	var canaryBucket *ratelimit.Bucket
+	if requestLimitCanary != 0 {
+		canaryBucket = ratelimit.NewBucket(infinityDuration, int64(requestLimitCanary))
+		isCanaryLimited = true
+	}
+
 	var handlerFunc http.HandlerFunc
 
 	if sidecarURL == "" {
 		handlerFunc = proxies.Main.ServeHTTP
 	} else {
-		handlerFunc = viaProxyWithSidecar(proxies, client, sidecarURL, requestLimitCanary, &counterCanary)
+		handlerFunc = viaProxyWithSidecar(proxies, client, sidecarURL, isCanaryLimited, canaryBucket)
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -74,7 +82,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 	}
 }
 
-func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, limitCanary uint64, counterCanary *uint64) http.HandlerFunc {
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, isCanaryLimited bool, canaryBucket *ratelimit.Bucket) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
 
@@ -88,7 +96,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			instrumentation.RecordLatency(ctx)
 		}()
 
-		if limitCanary != 0 && (getCounter(counterCanary) > (limitCanary - 1)) {
+		if isCanaryLimited && canaryBucket.Available() <= 0 {
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
@@ -100,7 +108,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			return
 		}
 
-		oriUR := req.URL
+		oriURL := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Failed to read body ori req: %+v", err)
@@ -131,7 +139,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 		}
 		defer resp.Body.Close()
 
-		req.URL = oriUR
+		req.URL = oriURL
 		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
 
 		switch resp.StatusCode {
@@ -139,22 +147,18 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
-			incCounter(counterCanary)
-			target = "canary"
-			proxies.Canary.ServeHTTP(w, req)
+			if isCanaryLimited && canaryBucket.TakeAvailable(1) == 0 {
+				target = "main"
+				proxies.Main.ServeHTTP(w, req)
+			} else {
+				target = "canary"
+				proxies.Canary.ServeHTTP(w, req)
+			}
 		default:
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
 	}
-}
-
-func incCounter(counter *uint64) {
-	atomic.AddUint64(counter, 1)
-}
-
-func getCounter(counter *uint64) uint64 {
-	return atomic.LoadUint64(counter)
 }
 
 func convertToBool(boolStr string) (bool, error) {
