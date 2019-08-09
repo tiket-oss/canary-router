@@ -37,18 +37,19 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
 
 func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, requestLimitCanary uint64) http.HandlerFunc {
 
+	var isCanaryLimited bool
 	var canaryBucket *ratelimit.Bucket
 	if requestLimitCanary != 0 {
 		canaryBucket = ratelimit.NewBucket(infinityDuration, int64(requestLimitCanary))
+		isCanaryLimited = true
 	}
 
-	var counterCanary uint64
 	var handlerFunc http.HandlerFunc
 
 	if sidecarURL == "" {
 		handlerFunc = proxies.Main.ServeHTTP
 	} else {
-		handlerFunc = viaProxyWithSidecar(proxies, client, sidecarURL, &counterCanary, canaryBucket)
+		handlerFunc = viaProxyWithSidecar(proxies, client, sidecarURL, isCanaryLimited, canaryBucket)
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -82,7 +83,7 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 	}
 }
 
-func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, counterCanary *uint64, canaryBucket *ratelimit.Bucket) http.HandlerFunc {
+func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL string, isCanaryLimited bool, canaryBucket *ratelimit.Bucket) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
 
@@ -96,7 +97,7 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			instrumentation.RecordLatency(ctx)
 		}()
 
-		if getCounter(counterCanary) > 0 {
+		if isCanaryLimited && canaryBucket.Available() <= 0 {
 			proxies.Main.ServeHTTP(w, req)
 			return
 		}
@@ -147,14 +148,11 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
-			if canaryBucket != nil && canaryBucket.TakeAvailable(1) == 0 {
-				incCounter(counterCanary)
-				target = "main"
-				proxies.Main.ServeHTTP(w, req)
-			} else {
-				target = "canary"
-				proxies.Canary.ServeHTTP(w, req)
+			if isCanaryLimited {
+				canaryBucket.TakeAvailable(1)
 			}
+			target = "canary"
+			proxies.Canary.ServeHTTP(w, req)
 		default:
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
