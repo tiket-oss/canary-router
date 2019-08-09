@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/juju/ratelimit"
@@ -160,14 +159,6 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			proxies.Main.ServeHTTP(w, req)
 		}
 	}
-}
-
-func incCounter(counter *uint64) {
-	atomic.AddUint64(counter, 1)
-}
-
-func getCounter(counter *uint64) uint64 {
-	return atomic.LoadUint64(counter)
 }
 
 func convertToBool(boolStr string) (bool, error) {
