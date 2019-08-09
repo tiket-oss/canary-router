@@ -228,7 +228,7 @@ func Test_viaProxy_integration(t *testing.T) {
 				case backendCanaryBody:
 					chanCanaryHit <- 1
 				default:
-					t.Fatal("Not supposed to be other content")
+					t.Errorf("Not supposed to be other content")
 				}
 			}(chanMainHit, chanCanaryHit)
 
