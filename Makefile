@@ -35,5 +35,9 @@ integration-test:
 build:
 	go build -v -o bin/$(TARGET) ./cmd/
 
+.PHONY: format
+format:
+	go fmt ./...
+
 .DEFAULT_GOAL := build
 
