@@ -148,11 +148,13 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
-			if isCanaryLimited {
-				canaryBucket.TakeAvailable(1)
+			if isCanaryLimited && canaryBucket.TakeAvailable(1) == 0 {
+				target = "main"
+				proxies.Main.ServeHTTP(w, req)
+			} else {
+				target = "canary"
+				proxies.Canary.ServeHTTP(w, req)
 			}
-			target = "canary"
-			proxies.Canary.ServeHTTP(w, req)
 		default:
 			target = "main"
 			proxies.Main.ServeHTTP(w, req)
