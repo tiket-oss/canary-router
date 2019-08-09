@@ -15,14 +15,26 @@ import (
 var (
 	// RequestCountView provide View for request count grouped by target
 	RequestCountView = &view.View{
-		Name:        "router/count",
+		Name:        "request/count",
 		Measure:     MLatencyMs,
-		Description: "The count of requests per path",
+		Description: "The count of requests per target",
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{KeyTarget},
 	}
 
-	views = []*view.View{RequestCountView}
+	// RequestLatencyView provide view for latency count distribution
+	RequestLatencyView = &view.View{
+		Name:        "request/latency",
+		Measure:     MLatencyMs,
+		Description: "The latency distribution per request target",
+
+		// Latency in buckets:
+		// [>=0ms, >=25ms, >=50ms, >=75ms, >=100ms, >=200ms, >=400ms, >=600ms, >=800ms, >=1s, >=2s, >=4s, >=6s]
+		Aggregation: view.Distribution(0, 25, 50, 75, 100, 200, 400, 600, 800, 1000, 2000, 4000, 6000),
+		TagKeys:     []tag.Key{KeyTarget},
+	}
+
+	views = []*view.View{RequestCountView, RequestLatencyView}
 )
 
 // Initialize register views and default Prometheus exporter
