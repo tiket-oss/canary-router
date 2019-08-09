@@ -52,14 +52,27 @@ func viaProxy(proxies *canaryrouter.Proxy, client *http.Client, sidecarURL strin
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := instrumentation.InitializeLatencyTracking(req.Context())
+		req = req.WithContext(ctx)
 
 		// NOTE: Override handlerFunc if X-Canary header is provided
 		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
+			var target string
+			defer func() {
+				ctx, err := instrumentation.AddTargetTag(req.Context(), target)
+				if err != nil {
+					log.Println(err)
+				}
+				instrumentation.RecordLatency(ctx)
+			}()
+
 			if xCanary {
+				target = "canary"
 				proxies.Canary.ServeHTTP(w, req)
 			} else {
+				target = "main"
 				proxies.Main.ServeHTTP(w, req)
 			}
 			return
@@ -73,8 +86,15 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 
 	return func(w http.ResponseWriter, req *http.Request) {
 
-		requestRecord := instrumentation.NewRequestRecord()
-		defer requestRecord.Register()
+		var target string
+		defer func() {
+			ctx, err := instrumentation.AddTargetTag(req.Context(), target)
+			if err != nil {
+				log.Print(err)
+			}
+
+			instrumentation.RecordLatency(ctx)
+		}()
 
 		if getCounter(counterCanary) > 0 {
 			proxies.Main.ServeHTTP(w, req)
@@ -124,19 +144,19 @@ func viaProxyWithSidecar(proxies *canaryrouter.Proxy, client *http.Client, sidec
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
-			requestRecord.Target = "main"
+			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		case canaryrouter.StatusCodeCanary:
 			if canaryBucket != nil && canaryBucket.TakeAvailable(1) == 0 {
 				incCounter(counterCanary)
-				requestRecord.Target = "main"
+				target = "main"
 				proxies.Main.ServeHTTP(w, req)
 			} else {
-				requestRecord.Target = "canary"
+				target = "canary"
 				proxies.Canary.ServeHTTP(w, req)
 			}
 		default:
-			requestRecord.Target = "main"
+			target = "main"
 			proxies.Main.ServeHTTP(w, req)
 		}
 	}
