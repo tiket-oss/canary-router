@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -84,10 +85,10 @@ func (s *Server) IsCanaryLimited() bool {
 }
 
 func (s *Server) viaProxy() http.HandlerFunc {
-	var handlerFunc http.HandlerFunc
+	var handlerFunc func(ctx context.Context, w http.ResponseWriter, req *http.Request)
 
 	if s.config.SidecarURL == "" {
-		handlerFunc = s.proxies.Main.ServeHTTP
+		handlerFunc = s.serveMain
 	} else {
 		handlerFunc = s.viaProxyWithSidecar()
 	}
@@ -100,52 +101,56 @@ func (s *Server) viaProxy() http.HandlerFunc {
 		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
-			var target string
-			defer func() {
-				ctx, err := instrumentation.AddTargetTag(req.Context(), target)
-				if err != nil {
-					log.Println(err)
-				}
-				instrumentation.RecordLatency(ctx)
-			}()
-
 			if xCanary {
-				target = "canary"
-				s.proxies.Canary.ServeHTTP(w, req)
+				s.serveCanary(ctx, w, req)
 			} else {
-				target = "main"
-				s.proxies.Main.ServeHTTP(w, req)
+				s.serveMain(ctx, w, req)
 			}
 			return
 		}
 
-		handlerFunc(w, req)
+		handlerFunc(ctx, w, req)
 	}
 }
 
-func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
+func (s *Server) serveMain(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		ctx, err := instrumentation.AddTargetTag(ctx, "main")
+		if err != nil {
+			log.Println(err)
+		}
 
-	return func(w http.ResponseWriter, req *http.Request) {
+		instrumentation.RecordLatency(ctx)
+	}()
 
-		var target string
-		defer func() {
-			ctx, err := instrumentation.AddTargetTag(req.Context(), target)
-			if err != nil {
-				log.Print(err)
-			}
+	s.proxies.Main.ServeHTTP(w, req)
+}
 
-			instrumentation.RecordLatency(ctx)
-		}()
+func (s *Server) serveCanary(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		ctx, err := instrumentation.AddTargetTag(ctx, "canary")
+		if err != nil {
+			log.Println(err)
+		}
 
+		instrumentation.RecordLatency(ctx)
+	}()
+
+	s.proxies.Canary.ServeHTTP(w, req)
+}
+
+func (s *Server) viaProxyWithSidecar() func(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+
+	return func(ctx context.Context, w http.ResponseWriter, req *http.Request) {
 		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 			return
 		}
 
 		sidecarURL, err := url.ParseRequestURI(s.config.SidecarURL)
 		if err != nil {
 			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarURL, err)
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 			return
 		}
 
@@ -153,7 +158,7 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Failed to read body ori req: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 			return
 		}
 
@@ -168,14 +173,14 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		err = json.NewEncoder(buf).Encode(originReq)
 		if err != nil {
 			log.Printf("Failed to encode json: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 			return
 		}
 
 		resp, err := s.sidecarHTTPClient.Post(sidecarURL.String(), "application/json", buf)
 		if err != nil {
 			log.Printf("Failed to get resp from sidecar: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 			return
 		}
 		defer resp.Body.Close()
@@ -185,19 +190,15 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
-			target = "main"
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 		case canaryrouter.StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
-				target = "main"
-				s.proxies.Main.ServeHTTP(w, req)
+				s.serveMain(ctx, w, req)
 			} else {
-				target = "canary"
-				s.proxies.Canary.ServeHTTP(w, req)
+				s.serveCanary(ctx, w, req)
 			}
 		default:
-			target = "main"
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(ctx, w, req)
 		}
 	}
 }
