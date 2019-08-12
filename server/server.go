@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
@@ -17,7 +18,16 @@ func Run(config config.Config) error {
 		return err
 	}
 
-	http.HandleFunc("/", handler.Index(config, proxies))
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc("/", handler.Index(config, proxies))
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", config.ListenPort), nil)
+	server := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Handler:      serveMux,
+		Addr:         fmt.Sprintf(":%d", config.ListenPort),
+	}
+
+	return server.ListenAndServe()
 }
