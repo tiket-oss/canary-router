@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/juju/errors"
+
 	"github.com/tiket-libre/canary-router/config"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
@@ -29,14 +31,14 @@ var (
 func Initialize(cfg config.InstrumentationConfig) error {
 
 	if err := view.Register(views...); err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	pe, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: "canary_router",
 	})
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 
 	view.RegisterExporter(pe)
@@ -45,7 +47,7 @@ func Initialize(cfg config.InstrumentationConfig) error {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", pe)
 		if err := http.ListenAndServe(addr, mux); err != nil {
-			log.Fatalf("Failed to run Prometheus scrape endpoint: %v", err)
+			log.Fatalf("Failed to run Prometheus scrape endpoint: %v", errors.ErrorStack(err))
 		}
 	}()
 
