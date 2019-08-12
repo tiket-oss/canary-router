@@ -15,11 +15,11 @@ import (
 var (
 	// RequestCountView provide View for request count grouped by target
 	RequestCountView = &view.View{
-		Name:        "router/count",
+		Name:        "request/count",
 		Measure:     MLatencyMs,
 		Description: "The count of requests per path",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{KeyTarget},
+		TagKeys:     []tag.Key{KeyTarget, KeyReason},
 	}
 
 	views = []*view.View{RequestCountView}

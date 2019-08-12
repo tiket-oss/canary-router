@@ -87,7 +87,7 @@ func (s *Server) viaProxy() http.HandlerFunc {
 	var handlerFunc http.HandlerFunc
 
 	if s.config.SidecarURL == "" {
-		handlerFunc = s.proxies.Main.ServeHTTP
+		handlerFunc = s.serveMain
 	} else {
 		handlerFunc = s.viaProxyWithSidecar()
 	}
@@ -100,21 +100,11 @@ func (s *Server) viaProxy() http.HandlerFunc {
 		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
-			var target string
-			defer func() {
-				ctx, err := instrumentation.AddTargetTag(req.Context(), target)
-				if err != nil {
-					log.Println(err)
-				}
-				instrumentation.RecordLatency(ctx)
-			}()
-
+			req = setRoutingReason(req, "Routed via X-Canary header value: %s", xCanaryVal)
 			if xCanary {
-				target = "canary"
-				s.proxies.Canary.ServeHTTP(w, req)
+				s.serveCanary(w, req)
 			} else {
-				target = "main"
-				s.proxies.Main.ServeHTTP(w, req)
+				s.serveMain(w, req)
 			}
 			return
 		}
@@ -123,37 +113,56 @@ func (s *Server) viaProxy() http.HandlerFunc {
 	}
 }
 
+func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		ctx, err := instrumentation.AddTargetTag(req.Context(), "main")
+		if err != nil {
+			log.Println(err)
+		}
+
+		instrumentation.RecordLatency(ctx)
+	}()
+
+	s.proxies.Main.ServeHTTP(w, req)
+}
+
+func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
+	defer func() {
+		ctx, err := instrumentation.AddTargetTag(req.Context(), "canary")
+		if err != nil {
+			log.Println(err)
+		}
+
+		instrumentation.RecordLatency(ctx)
+	}()
+
+	s.proxies.Canary.ServeHTTP(w, req)
+}
+
 func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
-
-		var target string
-		defer func() {
-			ctx, err := instrumentation.AddTargetTag(req.Context(), target)
-			if err != nil {
-				log.Print(err)
-			}
-
-			instrumentation.RecordLatency(ctx)
-		}()
-
 		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Canary limit reached")
+
+			s.serveMain(w, req)
 			return
 		}
 
 		sidecarURL, err := url.ParseRequestURI(s.config.SidecarURL)
 		if err != nil {
 			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarURL, err)
-			s.proxies.Main.ServeHTTP(w, req)
+			s.serveMain(w, req)
 			return
 		}
 
 		oriURL := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			log.Printf("Failed to read body ori req: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Failed to read original request body")
+
+			log.Printf("Failed to read original request body: %+v", err)
+			s.serveMain(w, req)
 			return
 		}
 
@@ -167,15 +176,19 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		buf := new(bytes.Buffer)
 		err = json.NewEncoder(buf).Encode(originReq)
 		if err != nil {
-			log.Printf("Failed to encode json: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Failed to encode JSON request to sidecar")
+
+			log.Printf("Failed to encode JSON request to sidecar: %+v", err)
+			s.serveMain(w, req)
 			return
 		}
 
 		resp, err := s.sidecarHTTPClient.Post(sidecarURL.String(), "application/json", buf)
 		if err != nil {
-			log.Printf("Failed to get resp from sidecar: %+v", err)
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Failed to get response from sidecar")
+
+			log.Printf("Failed to get response from sidecar: %+v", err)
+			s.serveMain(w, req)
 			return
 		}
 		defer resp.Body.Close()
@@ -185,19 +198,19 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
-			target = "main"
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
+			s.serveMain(w, req)
 		case canaryrouter.StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
-				target = "main"
-				s.proxies.Main.ServeHTTP(w, req)
+				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", resp.StatusCode)
+				s.serveMain(w, req)
 			} else {
-				target = "canary"
-				s.proxies.Canary.ServeHTTP(w, req)
+				req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
+				s.serveCanary(w, req)
 			}
 		default:
-			target = "main"
-			s.proxies.Main.ServeHTTP(w, req)
+			req = setRoutingReason(req, "Sidecar returns non standard status code %d", resp.StatusCode)
+			s.serveMain(w, req)
 		}
 	}
 }
@@ -208,4 +221,18 @@ func convertToBool(boolStr string) (bool, error) {
 	}
 
 	return false, errors.New("neither 'true' nor 'false'")
+}
+
+func setRoutingReason(req *http.Request, reason string, reasonArg ...interface{}) *http.Request {
+	if len(reasonArg) > 0 {
+		reason = fmt.Sprintf(reason, reasonArg...)
+	}
+
+	ctx, err := instrumentation.AddReasonTag(req.Context(), reason)
+	if err != nil {
+		log.Print(err)
+		return req
+	}
+
+	return req.WithContext(ctx)
 }

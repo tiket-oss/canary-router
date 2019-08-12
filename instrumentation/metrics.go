@@ -18,6 +18,9 @@ var (
 
 	// KeyTarget holds target information of the request being routed. It will be either "canary" or "main"
 	KeyTarget, _ = tag.NewKey("target")
+
+	// KeyReason holds information of the reason on routing decision
+	KeyReason, _ = tag.NewKey("reason")
 )
 
 func sinceInMilliseconds(startTime time.Time) float64 {
@@ -40,4 +43,9 @@ func RecordLatency(ctx context.Context) {
 // AddTargetTag ...
 func AddTargetTag(ctx context.Context, target string) (context.Context, error) {
 	return tag.New(ctx, tag.Upsert(KeyTarget, target))
+}
+
+// AddReasonTag ...
+func AddReasonTag(ctx context.Context, reason string) (context.Context, error) {
+	return tag.New(ctx, tag.Upsert(KeyReason, reason))
 }
