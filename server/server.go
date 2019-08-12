@@ -45,7 +45,10 @@ func NewServer(config config.Config) (*Server, error) {
 		IdleConnTimeout:    30 * time.Second,
 		DisableCompression: true,
 	}
-	server.sidecarHTTPClient = &http.Client{Transport: tr}
+	server.sidecarHTTPClient = &http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
