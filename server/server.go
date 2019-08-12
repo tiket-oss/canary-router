@@ -41,13 +41,13 @@ func NewServer(config config.Config) (*Server, error) {
 	server.proxies = proxies
 
 	tr := &http.Transport{
-		MaxIdleConns:       10,
-		IdleConnTimeout:    30 * time.Second,
-		DisableCompression: true,
+		MaxIdleConns:       config.Client.MaxIdleConns,
+		IdleConnTimeout:    time.Duration(config.Client.IdleConnTimeout) * time.Second,
+		DisableCompression: config.Client.DisableCompression,
 	}
 	server.sidecarHTTPClient = &http.Client{
 		Transport: tr,
-		Timeout:   5 * time.Second,
+		Timeout:   time.Duration(config.Client.Timeout) * time.Second,
 	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
@@ -63,11 +63,11 @@ func (s *Server) Run() error {
 	serveMux.HandleFunc("/", s.ServeHTTP)
 
 	server := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  time.Duration(s.config.Server.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
+		IdleTimeout:  time.Duration(s.config.Server.IdleTimeout) * time.Second,
 		Handler:      serveMux,
-		Addr:         fmt.Sprintf(":%d", s.config.ListenPort),
+		Addr:         fmt.Sprintf(":%s", s.config.Server.ListenPort),
 	}
 
 	return server.ListenAndServe()
