@@ -16,8 +16,8 @@ type Config struct {
 
 	CircuitBreaker  CircuitBreaker        `mapstructure:"circuit-breaker"`
 	Instrumentation InstrumentationConfig `mapstructure:"instrumentation"`
-	Server          HTTPServerConfig      `mapstructure:"server"`
-	Client          HTTPClientConfig      `mapstructure:"client"`
+	Server          HTTPServerConfig      `mapstructure:"router-server"`
+	Client          HTTPClientConfig      `mapstructure:"sidecar-client"`
 }
 
 // InstrumentationConfig holds the configuration values specific to the instrumentation aspect.

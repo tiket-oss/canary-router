@@ -9,13 +9,13 @@
         "host": "127.0.0.1",
         "port": "8888"
     },
-    "server": {
+    "router-server": {
         "listen-port": "1345",
         "read-timeout": 5,
         "write-timeout": 15,
         "idle-timeout": 120
     },
-    "client": {
+    "sidecar-client": {
         "timeout": 5,
         "max-idle-conns": 100,
         "idle-conn-timeout": 30,
