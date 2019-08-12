@@ -29,7 +29,10 @@ func Index(config config.Config, proxies *canaryrouter.Proxy) http.HandlerFunc {
 		DisableCompression: true,
 	}
 
-	client := &http.Client{Transport: tr}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   5 * time.Second,
+	}
 
 	return viaProxy(proxies, client, config.SidecarURL, config.CircuitBreaker.RequestLimitCanary)
 }
