@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -85,7 +84,7 @@ func (s *Server) IsCanaryLimited() bool {
 }
 
 func (s *Server) viaProxy() http.HandlerFunc {
-	var handlerFunc func(ctx context.Context, w http.ResponseWriter, req *http.Request)
+	var handlerFunc http.HandlerFunc
 
 	if s.config.SidecarURL == "" {
 		handlerFunc = s.serveMain
@@ -102,20 +101,20 @@ func (s *Server) viaProxy() http.HandlerFunc {
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
 			if xCanary {
-				s.serveCanary(ctx, w, req)
+				s.serveCanary(w, req)
 			} else {
-				s.serveMain(ctx, w, req)
+				s.serveMain(w, req)
 			}
 			return
 		}
 
-		handlerFunc(ctx, w, req)
+		handlerFunc(w, req)
 	}
 }
 
-func (s *Server) serveMain(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer func() {
-		ctx, err := instrumentation.AddTargetTag(ctx, "main")
+		ctx, err := instrumentation.AddTargetTag(req.Context(), "main")
 		if err != nil {
 			log.Println(err)
 		}
@@ -126,9 +125,9 @@ func (s *Server) serveMain(ctx context.Context, w http.ResponseWriter, req *http
 	s.proxies.Main.ServeHTTP(w, req)
 }
 
-func (s *Server) serveCanary(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer func() {
-		ctx, err := instrumentation.AddTargetTag(ctx, "canary")
+		ctx, err := instrumentation.AddTargetTag(req.Context(), "canary")
 		if err != nil {
 			log.Println(err)
 		}
@@ -139,18 +138,18 @@ func (s *Server) serveCanary(ctx context.Context, w http.ResponseWriter, req *ht
 	s.proxies.Canary.ServeHTTP(w, req)
 }
 
-func (s *Server) viaProxyWithSidecar() func(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
-	return func(ctx context.Context, w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
 		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 			return
 		}
 
 		sidecarURL, err := url.ParseRequestURI(s.config.SidecarURL)
 		if err != nil {
 			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarURL, err)
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 			return
 		}
 
@@ -158,7 +157,7 @@ func (s *Server) viaProxyWithSidecar() func(ctx context.Context, w http.Response
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
 			log.Printf("Failed to read body ori req: %+v", err)
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 			return
 		}
 
@@ -173,14 +172,14 @@ func (s *Server) viaProxyWithSidecar() func(ctx context.Context, w http.Response
 		err = json.NewEncoder(buf).Encode(originReq)
 		if err != nil {
 			log.Printf("Failed to encode json: %+v", err)
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 			return
 		}
 
 		resp, err := s.sidecarHTTPClient.Post(sidecarURL.String(), "application/json", buf)
 		if err != nil {
 			log.Printf("Failed to get resp from sidecar: %+v", err)
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 			return
 		}
 		defer resp.Body.Close()
@@ -190,15 +189,15 @@ func (s *Server) viaProxyWithSidecar() func(ctx context.Context, w http.Response
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 		case canaryrouter.StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
-				s.serveMain(ctx, w, req)
+				s.serveMain(w, req)
 			} else {
-				s.serveCanary(ctx, w, req)
+				s.serveCanary(w, req)
 			}
 		default:
-			s.serveMain(ctx, w, req)
+			s.serveMain(w, req)
 		}
 	}
 }
