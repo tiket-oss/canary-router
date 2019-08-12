@@ -100,6 +100,7 @@ func (s *Server) viaProxy() http.HandlerFunc {
 		xCanaryVal := req.Header.Get("X-Canary")
 		xCanary, err := convertToBool(xCanaryVal)
 		if err == nil {
+			req = setRoutingReason(req, "Routed via X-Canary header value: %s", xCanaryVal)
 			if xCanary {
 				s.serveCanary(w, req)
 			} else {
@@ -142,6 +143,8 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
+			req = setRoutingReason(req, "Canary limit reached")
+
 			s.serveMain(w, req)
 			return
 		}
@@ -156,7 +159,9 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		oriURL := req.URL
 		oriBody, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			log.Printf("Failed to read body ori req: %+v", err)
+			req = setRoutingReason(req, "Failed to read original request body")
+
+			log.Printf("Failed to read original request body: %+v", err)
 			s.serveMain(w, req)
 			return
 		}
@@ -171,14 +176,18 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		buf := new(bytes.Buffer)
 		err = json.NewEncoder(buf).Encode(originReq)
 		if err != nil {
-			log.Printf("Failed to encode json: %+v", err)
+			req = setRoutingReason(req, "Failed to encode JSON request to sidecar")
+
+			log.Printf("Failed to encode JSON request to sidecar: %+v", err)
 			s.serveMain(w, req)
 			return
 		}
 
 		resp, err := s.sidecarHTTPClient.Post(sidecarURL.String(), "application/json", buf)
 		if err != nil {
-			log.Printf("Failed to get resp from sidecar: %+v", err)
+			req = setRoutingReason(req, "Failed to get response from sidecar")
+
+			log.Printf("Failed to get response from sidecar: %+v", err)
 			s.serveMain(w, req)
 			return
 		}
@@ -189,14 +198,18 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 		switch resp.StatusCode {
 		case canaryrouter.StatusCodeMain:
+			req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
 			s.serveMain(w, req)
 		case canaryrouter.StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
+				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", resp.StatusCode)
 				s.serveMain(w, req)
 			} else {
+				req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
 				s.serveCanary(w, req)
 			}
 		default:
+			req = setRoutingReason(req, "Sidecar returns non standard status code %d", resp.StatusCode)
 			s.serveMain(w, req)
 		}
 	}
@@ -208,4 +221,18 @@ func convertToBool(boolStr string) (bool, error) {
 	}
 
 	return false, errors.New("neither 'true' nor 'false'")
+}
+
+func setRoutingReason(req *http.Request, reason string, reasonArg ...interface{}) *http.Request {
+	if len(reasonArg) > 0 {
+		reason = fmt.Sprintf(reason, reasonArg...)
+	}
+
+	ctx, err := instrumentation.AddReasonTag(req.Context(), reason)
+	if err != nil {
+		log.Print(err)
+		return req
+	}
+
+	return req.WithContext(ctx)
 }
