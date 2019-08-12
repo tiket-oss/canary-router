@@ -47,6 +47,11 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		return server.Run(appConfig)
+		server, err := server.NewServer(appConfig)
+		if err != nil {
+			return err
+		}
+
+		return server.Run()
 	},
 }
