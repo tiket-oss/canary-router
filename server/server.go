@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/tiket-libre/canary-router/version"
 
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
@@ -136,12 +139,7 @@ func (s *Server) viaProxy() http.HandlerFunc {
 
 func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer func() {
-		ctx, err := instrumentation.AddTargetTag(req.Context(), "main")
-		if err != nil {
-			log.Println(err)
-		}
-
-		instrumentation.RecordLatency(ctx)
+		recordMetricTarget(req.Context(), "main")
 	}()
 
 	s.proxies.Main.ServeHTTP(w, req)
@@ -149,12 +147,7 @@ func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 
 func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer func() {
-		ctx, err := instrumentation.AddTargetTag(req.Context(), "canary")
-		if err != nil {
-			log.Println(err)
-		}
-
-		instrumentation.RecordLatency(ctx)
+		recordMetricTarget(req.Context(), "canary")
 	}()
 
 	s.proxies.Canary.ServeHTTP(w, req)
@@ -256,4 +249,18 @@ func setRoutingReason(req *http.Request, reason string, reasonArg ...interface{}
 	}
 
 	return req.WithContext(ctx)
+}
+
+func recordMetricTarget(ctx context.Context, target string) {
+	ctx, err := instrumentation.AddTargetTag(ctx, target)
+	if err != nil {
+		log.Println(err)
+	}
+
+	ctx, err = instrumentation.AddVersionTag(ctx, version.Info.String())
+	if err != nil {
+		log.Println(err)
+	}
+
+	instrumentation.RecordLatency(ctx)
 }

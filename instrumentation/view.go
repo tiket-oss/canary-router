@@ -21,7 +21,7 @@ var (
 		Measure:     MLatencyMs,
 		Description: "The count of requests per target and reason",
 		Aggregation: view.Count(),
-		TagKeys:     []tag.Key{KeyTarget, KeyReason},
+		TagKeys:     []tag.Key{KeyVersion, KeyTarget, KeyReason},
 	}
 
 	// RequestLatencyView provide view for latency count distribution
@@ -33,7 +33,7 @@ var (
 		// Latency in buckets:
 		// [>=0ms, >=25ms, >=50ms, >=75ms, >=100ms, >=200ms, >=400ms, >=600ms, >=800ms, >=1s, >=2s, >=4s, >=6s]
 		Aggregation: view.Distribution(0, 25, 50, 75, 100, 200, 400, 600, 800, 1000, 2000, 4000, 6000),
-		TagKeys:     []tag.Key{KeyTarget},
+		TagKeys:     []tag.Key{KeyVersion, KeyTarget},
 	}
 
 	views = []*view.View{RequestCountView, RequestLatencyView}

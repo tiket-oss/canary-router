@@ -21,6 +21,9 @@ var (
 
 	// KeyReason holds information of the reason on routing decision
 	KeyReason, _ = tag.NewKey("reason")
+
+	// KeyVersion holds information of binary version
+	KeyVersion, _ = tag.NewKey("version")
 )
 
 func sinceInMilliseconds(startTime time.Time) float64 {
@@ -48,4 +51,9 @@ func AddTargetTag(ctx context.Context, target string) (context.Context, error) {
 // AddReasonTag ...
 func AddReasonTag(ctx context.Context, reason string) (context.Context, error) {
 	return tag.New(ctx, tag.Upsert(KeyReason, reason))
+}
+
+// AddVersionTag ...
+func AddVersionTag(ctx context.Context, version string) (context.Context, error) {
+	return tag.New(ctx, tag.Upsert(KeyVersion, version))
 }
