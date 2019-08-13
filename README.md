@@ -72,4 +72,9 @@ canary-router -c config.json
 
 ## Instrumentation
 
-*UNDER CONSTRUCTION*
+Instrumentation in Canary Router is build according to [OpenCensus](https://opencensus.io/) standards and only supports [Prometheus](https://prometheus.io/) as its monitoring systems. Currently the following views are available:
+
+| Name                          | Description                                 | Unit  |
+| ----------------------------- | ------------------------------------------- | ----- |
+| canary_router_request_count   | The count of requests per target            | count |
+| canary_router_request_latency | The latency distribution per request target | ms    |
