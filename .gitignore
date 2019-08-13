@@ -12,3 +12,6 @@ config.json
 
 # Ignore code coverage report
 coverage.txt
+
+# Ignore goreleaser generated folder
+dist/

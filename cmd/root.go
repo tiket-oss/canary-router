@@ -8,6 +8,7 @@ import (
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/server"
+	routerversion "github.com/tiket-libre/canary-router/version"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,6 +26,7 @@ func initConfig() {
 	// Don't forget to read config either from cfgFile or from home directory!
 	viper.SetConfigFile(cfgFile)
 
+	log.Printf("Canary Router version: %s", routerversion.Info)
 	log.Printf("Loaded with config file: %s", cfgFile)
 
 	viper.SetConfigType("json")
