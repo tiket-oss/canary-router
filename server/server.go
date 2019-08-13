@@ -5,10 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -153,6 +153,42 @@ func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	s.proxies.Canary.ServeHTTP(w, req)
 }
 
+func (s *Server) callSidecar(req *http.Request) (int, error) {
+	// Duplicate reader so that the original req.Body can still be used throughout
+	// the request
+	var bodyBuffer bytes.Buffer
+	body := io.TeeReader(req.Body, &bodyBuffer)
+
+	defer func() {
+		req.Body = ioutil.NopCloser(&bodyBuffer)
+	}()
+
+	reqBody, err := ioutil.ReadAll(body)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to read original request body: %v", err)
+	}
+
+	originalReq := sidecar.OriginRequest{
+		Method: req.Method,
+		URL:    req.URL.String(),
+		Header: req.Header,
+		Body:   string(reqBody),
+	}
+
+	buf := new(bytes.Buffer)
+	if err = json.NewEncoder(buf).Encode(originalReq); err != nil {
+		return 0, fmt.Errorf("Failed to encode JSON request to sidecar: %v", err)
+	}
+
+	resp, err := s.sidecarHTTPClient.Post(s.config.SidecarURL, "application/json", buf)
+	if err != nil {
+		return 0, fmt.Errorf("Failed when making request to sidecar: %v", err)
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode, nil
+}
+
 func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -163,67 +199,29 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 			return
 		}
 
-		sidecarURL, err := url.ParseRequestURI(s.config.SidecarURL)
+		statusCode, err := s.callSidecar(req)
 		if err != nil {
-			log.Printf("Failed to parse sidecar URL %s: %+v", sidecarURL, err)
+			req = setRoutingReason(req, err.Error())
+			log.Print(err)
+
 			s.serveMain(w, req)
 			return
 		}
 
-		oriURL := req.URL
-		oriBody, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			req = setRoutingReason(req, "Failed to read original request body")
-
-			log.Printf("Failed to read original request body: %+v", err)
-			s.serveMain(w, req)
-			return
-		}
-
-		originReq := sidecar.OriginRequest{
-			Method: req.Method,
-			URL:    req.URL.String(),
-			Header: req.Header,
-			Body:   string(oriBody),
-		}
-
-		buf := new(bytes.Buffer)
-		err = json.NewEncoder(buf).Encode(originReq)
-		if err != nil {
-			req = setRoutingReason(req, "Failed to encode JSON request to sidecar")
-
-			log.Printf("Failed to encode JSON request to sidecar: %+v", err)
-			s.serveMain(w, req)
-			return
-		}
-
-		resp, err := s.sidecarHTTPClient.Post(sidecarURL.String(), "application/json", buf)
-		if err != nil {
-			req = setRoutingReason(req, "Failed to get response from sidecar")
-
-			log.Printf("Failed to get response from sidecar: %+v", err)
-			s.serveMain(w, req)
-			return
-		}
-		defer resp.Body.Close()
-
-		req.URL = oriURL
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(oriBody))
-
-		switch resp.StatusCode {
+		switch statusCode {
 		case canaryrouter.StatusCodeMain:
-			req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
+			req = setRoutingReason(req, "Sidecar returns status code %d", statusCode)
 			s.serveMain(w, req)
 		case canaryrouter.StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
-				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", resp.StatusCode)
+				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", statusCode)
 				s.serveMain(w, req)
 			} else {
-				req = setRoutingReason(req, "Sidecar returns status code %d", resp.StatusCode)
+				req = setRoutingReason(req, "Sidecar returns status code %d", statusCode)
 				s.serveCanary(w, req)
 			}
 		default:
-			req = setRoutingReason(req, "Sidecar returns non standard status code %d", resp.StatusCode)
+			req = setRoutingReason(req, "Sidecar returns non standard status code %d", statusCode)
 			s.serveMain(w, req)
 		}
 	}
