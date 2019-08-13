@@ -105,7 +105,8 @@ func (s *Server) viaProxy() http.HandlerFunc {
 				case error:
 					err = t
 				default:
-					err = errors.New("Unknown error")
+					msg := fmt.Sprintf("Unknown error: %v", r)
+					err = errors.New(msg)
 				}
 
 				log.Printf("[Panic] Recovered in request handling: %v\nRequest payload: %v", r, req)
