@@ -62,13 +62,16 @@ func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", s.ServeHTTP)
 
+	address := fmt.Sprintf(":%s", s.config.Server.ListenPort)
 	server := &http.Server{
 		ReadTimeout:  time.Duration(s.config.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
 		IdleTimeout:  time.Duration(s.config.Server.IdleTimeout) * time.Second,
 		Handler:      serveMux,
-		Addr:         fmt.Sprintf(":%s", s.config.Server.ListenPort),
+		Addr:         address,
 	}
+
+	log.Printf("Canary Router is now running on %s", address)
 
 	return server.ListenAndServe()
 }
@@ -93,6 +96,24 @@ func (s *Server) viaProxy() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				var err error
+				switch t := r.(type) {
+				case string:
+					err = errors.New(t)
+				case error:
+					err = t
+				default:
+					msg := fmt.Sprintf("Unknown error: %v", r)
+					err = errors.New(msg)
+				}
+
+				log.Printf("[Panic] Recovered in request handling: %v\nRequest payload: %v", r, req)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}()
+
 		ctx := instrumentation.InitializeLatencyTracking(req.Context())
 		req = req.WithContext(ctx)
 

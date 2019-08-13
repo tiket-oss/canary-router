@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 
+	"github.com/juju/errors"
+
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
 	"github.com/tiket-libre/canary-router/server"
@@ -25,18 +27,19 @@ func initConfig() {
 	viper.SetConfigFile(cfgFile)
 
 	log.Printf("Canary Router version: %s", routerversion.Info)
-	log.Printf("=== config file: %s", cfgFile)
+	log.Printf("Loaded with config file: %s", cfgFile)
 
 	viper.SetConfigType("json")
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Can't read config: %v", err)
+		log.Fatalf("Can't read config: %v", errors.ErrorStack(err))
 	}
 
 	err := viper.Unmarshal(&appConfig)
+	log.Printf("%+v", appConfig)
 	if err != nil {
-		log.Fatalf("Unable to decode into config struct: %v", err)
+		log.Fatalf("Unable to decode into config struct: %v", errors.ErrorStack(err))
 	}
 }
 
@@ -46,12 +49,12 @@ var rootCmd = &cobra.Command{
 	Long:  `canary-router forwards HTTP request based on your custom logic`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := instrumentation.Initialize(appConfig.Instrumentation); err != nil {
-			return err
+			return errors.Trace(err)
 		}
 
 		server, err := server.NewServer(appConfig)
 		if err != nil {
-			return err
+			return errors.Trace(err)
 		}
 
 		return server.Run()

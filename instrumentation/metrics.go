@@ -14,7 +14,7 @@ var startTimeKey = contextKey("startTime")
 
 var (
 	// MLatencyMs records the time it took for request to be served (routed to proxy)
-	MLatencyMs = stats.Float64("router/latency", "Number of requests routed", "ms")
+	MLatencyMs = stats.Float64("request/latency", "Latency of request served", "ms")
 
 	// KeyTarget holds target information of the request being routed. It will be either "canary" or "main"
 	KeyTarget, _ = tag.NewKey("target")
