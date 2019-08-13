@@ -46,6 +46,7 @@ func Initialize(cfg config.InstrumentationConfig) error {
 		addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", pe)
+		log.Printf("Metrics endpoint will be running at: %s", addr)
 		if err := http.ListenAndServe(addr, mux); err != nil {
 			log.Fatalf("Failed to run Prometheus scrape endpoint: %v", errors.ErrorStack(err))
 		}

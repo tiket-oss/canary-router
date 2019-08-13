@@ -25,7 +25,7 @@ func initConfig() {
 	// Don't forget to read config either from cfgFile or from home directory!
 	viper.SetConfigFile(cfgFile)
 
-	log.Printf("=== config file: %s", cfgFile)
+	log.Printf("Loaded with config file: %s", cfgFile)
 
 	viper.SetConfigType("json")
 	viper.AutomaticEnv()
@@ -35,6 +35,7 @@ func initConfig() {
 	}
 
 	err := viper.Unmarshal(&appConfig)
+	log.Printf("%+v", appConfig)
 	if err != nil {
 		log.Fatalf("Unable to decode into config struct: %v", errors.ErrorStack(err))
 	}

@@ -62,13 +62,16 @@ func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", s.ServeHTTP)
 
+	address := fmt.Sprintf(":%s", s.config.Server.ListenPort)
 	server := &http.Server{
 		ReadTimeout:  time.Duration(s.config.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
 		IdleTimeout:  time.Duration(s.config.Server.IdleTimeout) * time.Second,
 		Handler:      serveMux,
-		Addr:         fmt.Sprintf(":%s", s.config.Server.ListenPort),
+		Addr:         address,
 	}
+
+	log.Printf("Canary Router is now running on %s", address)
 
 	return server.ListenAndServe()
 }
