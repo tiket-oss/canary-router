@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	// RequestCountView provide View for request count grouped by target
+	// RequestCountView provide View for request count grouped by target and reason
 	RequestCountView = &view.View{
 		Name:        "request/count",
 		Measure:     MLatencyMs,
-		Description: "The count of requests per target",
+		Description: "The count of requests per target and reason",
 		Aggregation: view.Count(),
 		TagKeys:     []tag.Key{KeyTarget, KeyReason},
 	}
