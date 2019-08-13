@@ -3,6 +3,8 @@ package canaryrouter
 import (
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/juju/errors"
 )
 
 // Proxy holds the reference to instance of Main and Canary httputil.ReverseProxy
@@ -17,12 +19,12 @@ type Proxy struct {
 func BuildProxies(mainTargetURL, canaryTargetURL string) (*Proxy, error) {
 	proxyMain, err := newReverseProxy(mainTargetURL)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	proxies := &Proxy{
@@ -36,7 +38,7 @@ func BuildProxies(mainTargetURL, canaryTargetURL string) (*Proxy, error) {
 func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
 	url, err := url.ParseRequestURI(target)
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 
 	return httputil.NewSingleHostReverseProxy(url), nil

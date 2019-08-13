@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/juju/errors"
+
 	"github.com/tiket-libre/canary-router/config"
 
 	canaryrouter "github.com/tiket-libre/canary-router"
@@ -287,7 +289,7 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 		}}
 	s, err := NewServer(c)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal(errors.ErrorStack(err))
 	}
 	s.sidecarHTTPClient = sidecarHTTPClient
 
@@ -297,7 +299,7 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 func newRequest(method, url, body string) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, strings.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, errors.Trace(err)
 	}
 	return req, nil
 }
