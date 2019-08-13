@@ -96,6 +96,23 @@ func (s *Server) viaProxy() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, req *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				var err error
+				switch t := r.(type) {
+				case string:
+					err = errors.New(t)
+				case error:
+					err = t
+				default:
+					err = errors.New("Unknown error")
+				}
+
+				log.Printf("[Panic] Recovered in request handling: %v\nRequest payload: %v", r, req)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}()
+
 		ctx := instrumentation.InitializeLatencyTracking(req.Context())
 		req = req.WithContext(ctx)
 
