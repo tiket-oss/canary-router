@@ -3,12 +3,14 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -17,7 +19,6 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
 	"github.com/tiket-libre/canary-router/instrumentation"
-	"github.com/tiket-libre/canary-router/sidecar"
 
 	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
@@ -27,17 +28,17 @@ const infinityDuration time.Duration = 0x7fffffffffffffff
 
 // Server holds necessary components as a proxy server
 type Server struct {
-	config            config.Config
-	proxies           *canaryrouter.Proxy
-	sidecarHTTPClient *http.Client
-	canaryBucket      *ratelimit.Bucket
+	config       config.Config
+	proxies      *canaryrouter.Proxy
+	sidecarProxy *httputil.ReverseProxy
+	canaryBucket *ratelimit.Bucket
 }
 
 // NewServer initiates a new proxy server
 func NewServer(config config.Config) (*Server, error) {
 	server := &Server{config: config}
 
-	proxies, err := canaryrouter.BuildProxies(config.MainTarget, config.CanaryTarget)
+	proxies, err := canaryrouter.BuildProxies(config.Client, config.MainTarget, config.CanaryTarget)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -48,10 +49,13 @@ func NewServer(config config.Config) (*Server, error) {
 		IdleConnTimeout:    time.Duration(config.Client.IdleConnTimeout) * time.Second,
 		DisableCompression: config.Client.DisableCompression,
 	}
-	server.sidecarHTTPClient = &http.Client{
-		Transport: tr,
-		Timeout:   time.Duration(config.Client.Timeout) * time.Second,
+
+	sidecarURL, err := url.Parse(server.config.SidecarURL)
+	if err != nil {
+		return nil, fmt.Errorf("Failed when creating proxy to sidecar: %v", err)
 	}
+	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
+	server.sidecarProxy.Transport = tr
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
@@ -163,30 +167,19 @@ func (s *Server) callSidecar(req *http.Request) (int, error) {
 		req.Body = ioutil.NopCloser(&bodyBuffer)
 	}()
 
-	reqBody, err := ioutil.ReadAll(body)
+	ctx := req.Context()
+	outreq := req.WithContext(ctx)
+
+	outBody, err := ioutil.ReadAll(body)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to read original request body: %v", err)
+		return 0, err
 	}
+	outreq.Body = ioutil.NopCloser(bytes.NewReader(outBody))
 
-	originalReq := sidecar.OriginRequest{
-		Method: req.Method,
-		URL:    req.URL.String(),
-		Header: req.Header,
-		Body:   string(reqBody),
-	}
+	recorder := httptest.NewRecorder()
+	s.sidecarProxy.ServeHTTP(recorder, outreq)
 
-	buf := new(bytes.Buffer)
-	if err = json.NewEncoder(buf).Encode(originalReq); err != nil {
-		return 0, fmt.Errorf("Failed to encode JSON request to sidecar: %v", err)
-	}
-
-	resp, err := s.sidecarHTTPClient.Post(s.config.SidecarURL, "application/json", buf)
-	if err != nil {
-		return 0, fmt.Errorf("Failed when making request to sidecar: %v", err)
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode, nil
+	return recorder.Code, nil
 }
 
 func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
@@ -202,7 +195,7 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		statusCode, err := s.callSidecar(req)
 		if err != nil {
 			req = setRoutingReason(req, err.Error())
-			log.Print(err)
+			log.Print(fmt.Errorf("Error when calling sidecar: %v", err))
 
 			s.serveMain(w, req)
 			return

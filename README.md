@@ -68,6 +68,7 @@ To run this, make sure you have the services involved defined in a JSON configur
 | circuit-breaker.request-limit-canary  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | STRING  | No        |
 | instrumentation.host & port           | Host & port to access instrumentatione endpoint  | STRING  | No        |
 
+
 After filling out the configuration file, provide its path in the `-c` or `--config` flag to run the canary router:
 
 ```sh
