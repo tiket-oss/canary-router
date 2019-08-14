@@ -38,7 +38,7 @@ type Server struct {
 func NewServer(config config.Config) (*Server, error) {
 	server := &Server{config: config}
 
-	proxies, err := canaryrouter.BuildProxies(config.MainTarget, config.CanaryTarget)
+	proxies, err := canaryrouter.BuildProxies(config.Client, config.MainTarget, config.CanaryTarget)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}

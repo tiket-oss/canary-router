@@ -1,8 +1,12 @@
 package canaryrouter
 
 import (
+	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
+
+	"github.com/tiket-libre/canary-router/config"
 
 	"github.com/juju/errors"
 )
@@ -16,16 +20,24 @@ type Proxy struct {
 
 // BuildProxies constructs a Proxy object with mainTargetURL as the URL for Main proxy
 // and canaryTargetURL as the URL for Canary proxy
-func BuildProxies(mainTargetURL, canaryTargetURL string) (*Proxy, error) {
+func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTargetURL string) (*Proxy, error) {
+	tr := &http.Transport{
+		MaxIdleConns:       configClient.MaxIdleConns,
+		IdleConnTimeout:    time.Duration(configClient.IdleConnTimeout) * time.Second,
+		DisableCompression: configClient.DisableCompression,
+	}
+
 	proxyMain, err := newReverseProxy(mainTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	proxyMain.Transport = tr
 
 	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
+	proxyCanary.Transport = tr
 
 	proxies := &Proxy{
 		Main:   proxyMain,
