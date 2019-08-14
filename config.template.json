@@ -15,7 +15,7 @@
         "write-timeout": 15,
         "idle-timeout": 120
     },
-    "sidecar-client": {
+    "proxy-client": {
         "timeout": 5,
         "max-idle-conns": 100,
         "idle-conn-timeout": 30,

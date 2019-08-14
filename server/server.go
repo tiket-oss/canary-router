@@ -28,11 +28,10 @@ const infinityDuration time.Duration = 0x7fffffffffffffff
 
 // Server holds necessary components as a proxy server
 type Server struct {
-	config            config.Config
-	proxies           *canaryrouter.Proxy
-	sidecarProxy      *httputil.ReverseProxy
-	sidecarHTTPClient *http.Client
-	canaryBucket      *ratelimit.Bucket
+	config       config.Config
+	proxies      *canaryrouter.Proxy
+	sidecarProxy *httputil.ReverseProxy
+	canaryBucket *ratelimit.Bucket
 }
 
 // NewServer initiates a new proxy server
@@ -50,16 +49,13 @@ func NewServer(config config.Config) (*Server, error) {
 		IdleConnTimeout:    time.Duration(config.Client.IdleConnTimeout) * time.Second,
 		DisableCompression: config.Client.DisableCompression,
 	}
-	server.sidecarHTTPClient = &http.Client{
-		Transport: tr,
-		Timeout:   time.Duration(config.Client.Timeout) * time.Second,
-	}
 
-	URL, err := url.Parse(server.config.SidecarURL)
+	sidecarURL, err := url.Parse(server.config.SidecarURL)
 	if err != nil {
 		return nil, fmt.Errorf("Failed when creating proxy to sidecar: %v", err)
 	}
-	server.sidecarProxy = httputil.NewSingleHostReverseProxy(URL)
+	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
+	server.sidecarProxy.Transport = tr
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
