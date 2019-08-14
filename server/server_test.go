@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"github.com/tiket-libre/canary-router/config"
 
 	canaryrouter "github.com/tiket-libre/canary-router"
-	"github.com/tiket-libre/canary-router/sidecar"
 )
 
 func Test_Server_integration(t *testing.T) {
@@ -142,17 +140,14 @@ func Test_Server_integration(t *testing.T) {
 			t.Run(fmt.Sprintf("%d %s", tc.argStatusCode, tc.name), func(t *testing.T) {
 				//t.Parallel()
 
-				bodyResults := map[string]sidecar.OriginRequest{}
+				bodyResults := make(map[string]string)
 
 				backendSidecar, backendSidecarURL := setupServer(t, emptyBodyBytes, tc.argStatusCode, func(r *http.Request) {
-					decoder := json.NewDecoder(r.Body)
-					var oriReq sidecar.OriginRequest
-					err := decoder.Decode(&oriReq)
+					byt, err := ioutil.ReadAll(r.Body)
 					if err != nil {
 						t.Fatal(err)
 					}
-
-					bodyResults[oriReq.Method] = oriReq
+					bodyResults[r.Method] = string(byt)
 				})
 				defer backendSidecar.Close()
 
@@ -175,9 +170,9 @@ func Test_Server_integration(t *testing.T) {
 					})
 				}
 
-				for _, gotOriReq := range bodyResults {
-					if gotOriReq.Body != originBodyContent {
-						t.Errorf("Got ori body content: %s Want: %s", gotOriReq.Body, originBodyContent)
+				for _, gotBody := range bodyResults {
+					if gotBody != originBodyContent {
+						t.Errorf("Got ori body content: %s Want: %s", gotBody, originBodyContent)
 					}
 				}
 
@@ -190,14 +185,12 @@ func Test_Server_integration(t *testing.T) {
 
 		sideCarToCanary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 
-			decoder := json.NewDecoder(req.Body)
-			var oriReq sidecar.OriginRequest
-			err := decoder.Decode(&oriReq)
+			byt, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			i, err := strconv.Atoi(string(oriReq.Body))
+			i, err := strconv.Atoi(string(byt))
 			if err != nil {
 				t.Fatal(err)
 			}
