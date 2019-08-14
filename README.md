@@ -58,13 +58,14 @@ To run this, make sure you have the services involved defined in a JSON configur
 }
 ```
 
-| Field                     | Description                               | Type    |
-| --------------------      | ----------------------------------------- | ------- |
-| router-server.listen-port | Port that are used to serve Canary Router | INTEGER |
-| main-target               | URL of the old/secondary service          | STRING  |
-| canary-target             | URL of the new/primary service            | STRING  |
-| sidecar-url               | URL of the sidecar service                | STRING  |
-| instrumentation.port      | Port to access instrumentatione endpoint  | STRING  |
+| Field                                 | Description                               | Type    | Mandatory |
+| --------------------                  | ----------------------------------------- | ------- | --------- |
+| router-server.listen-port             | Port that are used to serve Canary Router | INTEGER | Yes       |
+| main-target                           | URL of the old/secondary service          | STRING  | Yes       |
+| canary-target                         | URL of the new/primary service            | STRING  | Yes       |
+| sidecar-url                           | URL of the sidecar service                | STRING  | Yes       |
+| circuit-breaker.request-limit-canary  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | STRING  | No        |
+| instrumentation.port                  | Port to access instrumentatione endpoint  | STRING  | No        |
 
 After filling out the configuration file, provide its path in the `-c` or `--config` flag to run the canary router:
 
