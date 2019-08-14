@@ -43,10 +43,12 @@ To run this, make sure you have the services involved defined in a JSON configur
 
 ```json
 {
-    "listen-port": 1345,
+    "router-server": {
+            "listen-port": "1345"
+    },
     "main-target": "http://server-mono.localhost",
     "canary-target": "http://server-micro.localhost",
-    "sidecar-url": "http://sidecar.localhost",
+    "sidecar-url": "http://sidecar.localhost/sidecar",
     "circuit-breaker": {
         "request-limit-canary": 300
     },
@@ -56,19 +58,23 @@ To run this, make sure you have the services involved defined in a JSON configur
 }
 ```
 
-| Field                | Description                               | Type    |
-| -------------------- | ----------------------------------------- | ------- |
-| listen-port          | Port that are used to serve Canary Router | INTEGER |
-| main-target          | URL of the old/secondary service          | STRING  |
-| canary-target        | URL of the new/primary service            | STRING  |
-| sidecar-url          | URL of the sidecar service                | STRING  |
-| instrumentation.port | Port to access instrumentatione endpoint  | STRING  |
+| Field                     | Description                               | Type    |
+| --------------------      | ----------------------------------------- | ------- |
+| router-server.listen-port | Port that are used to serve Canary Router | INTEGER |
+| main-target               | URL of the old/secondary service          | STRING  |
+| canary-target             | URL of the new/primary service            | STRING  |
+| sidecar-url               | URL of the sidecar service                | STRING  |
+| instrumentation.port      | Port to access instrumentatione endpoint  | STRING  |
 
 After filling out the configuration file, provide its path in the `-c` or `--config` flag to run the canary router:
 
 ```sh
 canary-router -c config.json
 ```
+
+## Canary Sidecar Implementation
+
+Full Example: [sample/canary-sidecar/main.go](https://github.com/tiket-libre/canary-router/tree/master/sample/canary-sidecar)
 
 ## Instrumentation
 
