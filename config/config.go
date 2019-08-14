@@ -33,7 +33,8 @@ type CircuitBreaker struct {
 
 // HTTPServerConfig holds the configuration for instantiating http.Server
 type HTTPServerConfig struct {
-	ListenPort   string `mapstructure:"listen-port"`
+	Host         string `mapstructure:"host"`
+	Port         string `mapstructure:"port"`
 	ReadTimeout  int    `mapstructure:"read-timeout"`
 	WriteTimeout int    `mapstructure:"write-timeout"`
 	IdleTimeout  int    `mapstructure:"idle-timeout"`

@@ -69,7 +69,7 @@ func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", s.ServeHTTP)
 
-	address := fmt.Sprintf(":%s", s.config.Server.ListenPort)
+	address := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	server := &http.Server{
 		ReadTimeout:  time.Duration(s.config.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
