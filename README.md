@@ -31,11 +31,14 @@ This way the Canary Router will be decoupled from any dependency that might occu
 
 ## Installation
 
-To install the canary router, make sure that you have Go installed and run the following command.
+- If you have Go installed, run the following command:
 
 ```sh
 go get -u -v github.com/tiket-libre/canary-router
 ```
+
+- or download the binary : [Latest Binary](releases/latest)
+
 
 ## Usage
 
@@ -77,7 +80,7 @@ canary-router -c config.json
 
 ## Canary Sidecar Implementation
 
-Full Example: [sample/canary-sidecar/main.go](https://github.com/tiket-libre/canary-router/tree/master/sample/canary-sidecar)
+Full Example: [sample/canary-sidecar/main.go](sample/canary-sidecar/main.go)
 
 ## Instrumentation
 
