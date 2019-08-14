@@ -37,7 +37,7 @@ This way the Canary Router will be decoupled from any dependency that might occu
 go get -u -v github.com/tiket-libre/canary-router
 ```
 
-- or download the binary : [Latest Binary](releases/latest)
+- or download the binary : [Latest Binary](https://github.com/tiket/canary-router/releases/latest)
 
 
 ## Usage
