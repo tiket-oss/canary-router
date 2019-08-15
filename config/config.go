@@ -6,6 +6,10 @@ type Config struct {
 	CanaryTarget string `mapstructure:"canary-target"`
 	SidecarURL   string `mapstructure:"sidecar-url"`
 
+	// TrimPrefix if set will modify subsequent request path to main, canary, and sidecar service
+	// by removing TrimPrefix substring in the request path string
+	TrimPrefix string `mapstructure:"trim-prefix"`
+
 	// MainSidecarStatus is the expected HTTP Status code that will be returned by Sidecar
 	// should the route be passed to Main service.
 	MainSidecarStatus int `mapstructure:"main-sidecar-status"`

@@ -2,6 +2,7 @@
     "main-target": "http://server-mono.localhost",
     "canary-target": "http://server-micro.localhost",
     "sidecar-url": "http://sidecar.localhost",
+    "trim-prefix": "/prefix/path/to/strip",
     "circuit-breaker": {
         "request-limit-canary": 300
     },

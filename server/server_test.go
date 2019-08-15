@@ -348,3 +348,42 @@ func Test_convertToBool(t *testing.T) {
 		})
 	}
 }
+
+func Test_trimRequestPathPrefix(t *testing.T) {
+	type args struct {
+		url    string
+		prefix string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "no prefix", args: args{url: "http://localhost:8090/foo/bar", prefix: ""}, want: "http://localhost:8090/foo/bar"},
+		{name: "/foo", args: args{url: "http://localhost:8090/foo/bar", prefix: "/foo"}, want: "http://localhost:8090/bar"},
+		{name: "foo", args: args{url: "http://localhost:8090/foo/bar", prefix: "foo"}, want: "http://localhost:8090/foo/bar"},
+		{name: "/foo/", args: args{url: "http://localhost:8090/foo/bar", prefix: "/foo/"}, want: "http://localhost:8090/bar"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			argsURL, err := url.Parse(tt.args.url)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			wantURL, err := url.Parse(tt.want)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got := trimRequestPathPrefix(argsURL, tt.args.prefix)
+			argsURL.Path = got
+
+			if wantURL.String() != argsURL.String() {
+				t.Errorf("trimPrefix() = %v, want %v", argsURL.String(), wantURL.String())
+			}
+
+		})
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tiket-libre/canary-router/version"
@@ -123,6 +124,7 @@ func (s *Server) viaProxy() http.HandlerFunc {
 
 		ctx := instrumentation.InitializeLatencyTracking(req.Context())
 		req = req.WithContext(ctx)
+		req.URL.Path = trimRequestPathPrefix(req.URL, s.config.TrimPrefix)
 
 		// NOTE: Override handlerFunc if X-Canary header is provided
 		xCanaryVal := req.Header.Get("X-Canary")
@@ -254,4 +256,8 @@ func recordMetricTarget(ctx context.Context, target string) {
 	}
 
 	instrumentation.RecordLatency(ctx)
+}
+
+func trimRequestPathPrefix(reqURL *url.URL, prefix string) string {
+	return strings.TrimPrefix(reqURL.Path, prefix)
 }
