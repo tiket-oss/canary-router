@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tiket-libre/canary-router/version"
@@ -123,6 +124,9 @@ func (s *Server) viaProxy() http.HandlerFunc {
 
 		ctx := instrumentation.InitializeLatencyTracking(req.Context())
 		req = req.WithContext(ctx)
+
+		trimmedPath := strings.TrimPrefix(req.URL.Path, s.config.TrimPrefix)
+		req.URL.Path = trimmedPath
 
 		// NOTE: Override handlerFunc if X-Canary header is provided
 		xCanaryVal := req.Header.Get("X-Canary")
