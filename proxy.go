@@ -21,23 +21,18 @@ type Proxy struct {
 // BuildProxies constructs a Proxy object with mainTargetURL as the URL for Main proxy
 // and canaryTargetURL as the URL for Canary proxy
 func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTargetURL string) (*Proxy, error) {
-	tr := &http.Transport{
-		MaxIdleConns:       configClient.MaxIdleConns,
-		IdleConnTimeout:    time.Duration(configClient.IdleConnTimeout) * time.Second,
-		DisableCompression: configClient.DisableCompression,
-	}
 
 	proxyMain, err := newReverseProxy(mainTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	proxyMain.Transport = tr
+	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
 
 	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	proxyCanary.Transport = tr
+	proxyCanary.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
 
 	proxies := &Proxy{
 		Main:   proxyMain,
@@ -45,6 +40,14 @@ func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTar
 	}
 
 	return proxies, nil
+}
+
+func newTransport(maxIdleConns, idleConnTimeout int, disableCompression bool) *http.Transport {
+	return &http.Transport{
+		MaxIdleConns:       maxIdleConns,
+		IdleConnTimeout:    time.Duration(idleConnTimeout) * time.Second,
+		DisableCompression: disableCompression,
+	}
 }
 
 func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
