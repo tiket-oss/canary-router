@@ -53,6 +53,7 @@ To run this, make sure you have the services involved defined in a JSON configur
     "main-target": "http://server-mono.localhost",
     "canary-target": "http://server-micro.localhost",
     "sidecar-url": "http://sidecar.localhost/sidecar",
+    "trim-prefix": "/prefix/path/to/strip",
     "circuit-breaker": {
         "request-limit-canary": 300
     },
@@ -68,6 +69,7 @@ To run this, make sure you have the services involved defined in a JSON configur
 | main-target                           | URL of the old/secondary service          | STRING  | Yes       |
 | canary-target                         | URL of the new/primary service            | STRING  | Yes       |
 | sidecar-url                           | URL of the sidecar service                | STRING  | Yes       |
+| trim-prefix                           | Trim prefix of incoming request path      | STRING  | No       |
 | circuit-breaker.request-limit-canary  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | STRING  | No        |
 | instrumentation.host & port           | Host & port to access instrumentatione endpoint  | STRING  | No        |
 
