@@ -58,6 +58,7 @@ To run this, make sure you have the services involved defined in a JSON configur
         "request-limit-canary": 300
     },
     "instrumentation": {
+        "host": "localhost",
         "port": "8888"
     }
 }
@@ -65,13 +66,13 @@ To run this, make sure you have the services involved defined in a JSON configur
 
 | Field                                 | Description                               | Type    | Mandatory |
 | --------------------                  | ----------------------------------------- | ------- | --------- |
-| router-server.host & port             | Host & port that are used to serve Canary Router | INTEGER | Yes       |
-| main-target                           | URL of the old/secondary service          | STRING  | Yes       |
-| canary-target                         | URL of the new/primary service            | STRING  | Yes       |
-| sidecar-url                           | URL of the sidecar service                | STRING  | Yes       |
-| trim-prefix                           | Trim prefix of incoming request path      | STRING  | No       |
-| circuit-breaker.request-limit-canary  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | STRING  | No        |
-| instrumentation.host & port           | Host & port to access instrumentatione endpoint  | STRING  | No        |
+| `router-server.host` & `port`             | Host & port that are used to serve Canary Router | STRING | Yes       |
+| `main-target`                           | URL of the old/secondary service          | STRING  | Yes       |
+| `canary-target`                         | URL of the new/primary service            | STRING  | Yes       |
+| `sidecar-url`                           | URL of the sidecar service                | STRING  | Yes       |
+| `trim-prefix`                           | Trim prefix of incoming request path      | STRING  | No       |
+| `circuit-breaker.request-limit-canary`  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | INTEGER  | No        |
+| `instrumentation.host` & `port`           | Host & port to access instrumentatione endpoint  | STRING  | No        |
 
 
 After filling out the configuration file, provide its path in the `-c` or `--config` flag to run the canary router:
