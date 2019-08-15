@@ -33,6 +33,7 @@ type InstrumentationConfig struct {
 // CircuitBreaker holds the configuration values specific to the circuit breaking aspect.
 type CircuitBreaker struct {
 	RequestLimitCanary uint64 `mapstructure:"request-limit-canary"`
+	ErrorLimitCanary   uint64 `mapstructure:"error-limit-canary"`
 }
 
 // HTTPServerConfig holds the configuration for instantiating http.Server

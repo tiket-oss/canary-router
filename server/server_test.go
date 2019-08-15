@@ -23,7 +23,7 @@ func Test_Server_integration(t *testing.T) {
 	}
 
 	emptyBodyBytes := []byte("")
-	noCanaryLimit := uint64(0)
+	noCircuitBreakerParam := circuitBreakerParam{}
 
 	backendMainBody := "Hello, I'm Main!"
 	backendMain, _ := setupServer(t, []byte(backendMainBody), http.StatusOK, func(r *http.Request) {})
@@ -39,7 +39,7 @@ func Test_Server_integration(t *testing.T) {
 	//}
 
 	t.Run("[Given] No sideCarURL provided [then] default to Main", func(t *testing.T) {
-		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCanaryLimit))
+		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCircuitBreakerParam))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, "foo bar body")
@@ -53,7 +53,7 @@ func Test_Server_integration(t *testing.T) {
 		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
-		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCanaryLimit))
+		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "true"}, "foo bar body")
@@ -66,7 +66,7 @@ func Test_Server_integration(t *testing.T) {
 		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
-		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCanaryLimit))
+		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
@@ -79,7 +79,7 @@ func Test_Server_integration(t *testing.T) {
 		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
-		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanaryURL.String(), noCanaryLimit))
+		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanaryURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
 		_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": "NOTVALID"}, "foo bar body")
@@ -107,7 +107,7 @@ func Test_Server_integration(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCanaryLimit))
+				thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCircuitBreakerParam))
 				defer thisRouter.Close()
 
 				_, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{"X-Canary": tc.argXCanary}, "foo bar body")
@@ -151,7 +151,7 @@ func Test_Server_integration(t *testing.T) {
 				})
 				defer backendSidecar.Close()
 
-				thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, backendSidecarURL.String(), noCanaryLimit))
+				thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, backendSidecarURL.String(), noCircuitBreakerParam))
 				defer thisRouter.Close()
 
 				originBodyContent := "This is DUMMY body"
@@ -183,28 +183,10 @@ func Test_Server_integration(t *testing.T) {
 	t.Run("Test circuitbreaker with canary request limit", func(t *testing.T) {
 		canaryLimit := uint64(45)
 
-		sideCarToCanary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		sideCarServerFiftyFifty := setupCanaryServerFiftyFifty(t)
+		defer sideCarServerFiftyFifty.Close()
 
-			byt, err := ioutil.ReadAll(req.Body)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			i, err := strconv.Atoi(string(byt))
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if i%2 == 0 {
-				w.WriteHeader(canaryrouter.StatusCodeMain)
-			} else {
-				w.WriteHeader(canaryrouter.StatusCodeCanary)
-			}
-
-		}))
-		defer sideCarToCanary.Close()
-
-		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanary.URL, canaryLimit))
+		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{RequestLimitCanary: canaryLimit}))
 		defer thisRouter.Close()
 
 		gotCanaryCount, gotMainCount := 0, 0
@@ -270,7 +252,12 @@ func setupServer(t *testing.T, bodyResp []byte, statusCode int, middleFunc func(
 	return server, serverURL
 }
 
-func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string, sidecarURL string, canaryLimit uint64) *Server {
+type circuitBreakerParam struct {
+	RequestLimitCanary uint64
+	ErrorLimitCanary   uint64
+}
+
+func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string, sidecarURL string, circuitBreakerParam circuitBreakerParam) *Server {
 	t.Helper()
 
 	c := config.Config{
@@ -278,7 +265,8 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 		CanaryTarget: backendCanaryURL,
 		SidecarURL:   sidecarURL,
 		CircuitBreaker: config.CircuitBreaker{
-			RequestLimitCanary: canaryLimit,
+			RequestLimitCanary: circuitBreakerParam.RequestLimitCanary,
+			ErrorLimitCanary:   circuitBreakerParam.ErrorLimitCanary,
 		}}
 	s, err := NewServer(c)
 	if err != nil {
@@ -286,6 +274,34 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 	}
 
 	return s
+}
+
+// Create a mock canary server that give responses with 50:50 distribution for canaryrouter.StatusCodeMain and canaryrouter.StatusCodeCanary.
+// Make sure sidecar.OriginRequest.Body from rest client has only integer value.
+func setupCanaryServerFiftyFifty(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+
+		body, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i, err := strconv.Atoi(string(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if i%2 == 0 {
+			w.WriteHeader(canaryrouter.StatusCodeMain)
+		} else {
+			w.WriteHeader(canaryrouter.StatusCodeCanary)
+		}
+
+	}))
+
+	return server
 }
 
 func newRequest(method, url, body string) (*http.Request, error) {
