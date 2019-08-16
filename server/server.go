@@ -80,6 +80,12 @@ func NewServer(config config.Config) (*Server, error) {
 func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", s.ServeHTTP)
+	serveMux.HandleFunc("/application/health", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("OK")); err != nil {
+			log.Printf("Failed to write health check body")
+		}
+	}))
 
 	address := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	server := &http.Server{
