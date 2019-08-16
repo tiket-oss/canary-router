@@ -26,6 +26,8 @@ import (
 )
 
 const infinityDuration time.Duration = 0x7fffffffffffffff
+
+// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
 const StatusSidecarError = http.StatusServiceUnavailable
 
 // Server holds necessary components as a proxy server
