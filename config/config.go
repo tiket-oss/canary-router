@@ -44,6 +44,7 @@ type HTTPServerConfig struct {
 	IdleTimeout  int    `mapstructure:"idle-timeout"`
 }
 
+// MultiHTTPClientConfig holds the configuration for instantiating main&canary and sidecar proxy http.Client
 type MultiHTTPClientConfig struct {
 	MainAndCanary HTTPClientConfig `mapstructure:"to-main-and-canary"`
 	Sidecar       HTTPClientConfig `mapstructure:"to-sidecar"`
