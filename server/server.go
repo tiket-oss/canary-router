@@ -57,6 +57,10 @@ func NewServer(config config.Config) (*Server, error) {
 	}
 	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
 	server.sidecarProxy.Transport = tr
+	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+		log.Printf("sidecar proxy error: %+v", err)
+		w.WriteHeader(canaryrouter.StatusCodeMain)
+	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
