@@ -1,9 +1,11 @@
 package canaryrouter
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/tiket-libre/canary-router/config"
@@ -27,12 +29,14 @@ func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTar
 		return nil, errors.Trace(err)
 	}
 	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
+	proxyMain.ErrorLog = log.New(os.Stderr, "[proxy-main] ", log.LstdFlags|log.Llongfile)
 
 	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	proxyCanary.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
+	proxyCanary.ErrorLog = log.New(os.Stderr, "[proxy-canary] ", log.LstdFlags|log.Llongfile)
 
 	proxies := &Proxy{
 		Main:   proxyMain,

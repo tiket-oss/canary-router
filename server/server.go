@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,7 @@ func NewServer(config config.Config) (*Server, error) {
 	}
 	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
 	server.sidecarProxy.Transport = tr
+	server.sidecarProxy.ErrorLog = log.New(os.Stderr, "[proxy-sidecar] ", log.LstdFlags|log.Llongfile)
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
