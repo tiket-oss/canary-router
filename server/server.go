@@ -26,6 +26,7 @@ import (
 )
 
 const infinityDuration time.Duration = 0x7fffffffffffffff
+const StatusSidecarError = http.StatusServiceUnavailable
 
 // Server holds necessary components as a proxy server
 type Server struct {
@@ -59,7 +60,11 @@ func NewServer(config config.Config) (*Server, error) {
 	server.sidecarProxy.Transport = tr
 	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
 		log.Printf("sidecar proxy error: %+v", err)
-		w.WriteHeader(canaryrouter.StatusCodeMain)
+		w.WriteHeader(StatusSidecarError)
+		_, errWrite := w.Write([]byte(err.Error()))
+		if errWrite != nil {
+			log.Printf("Failed to write sidecar error body")
+		}
 	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
@@ -184,6 +189,10 @@ func (s *Server) callSidecar(req *http.Request) (int, error) {
 
 	recorder := httptest.NewRecorder()
 	s.sidecarProxy.ServeHTTP(recorder, outreq)
+
+	if recorder.Code == StatusSidecarError {
+		return recorder.Code, errors.New(recorder.Body.String())
+	}
 
 	return recorder.Code, nil
 }
