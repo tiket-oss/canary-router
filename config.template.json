@@ -18,9 +18,17 @@
         "idle-timeout": 120
     },
     "proxy-client": {
-        "timeout": 5,
-        "max-idle-conns": 100,
-        "idle-conn-timeout": 30,
-        "disable-compression": true
+        "to-main-and-canary": {
+            "timeout": 5,
+            "max-idle-conns": 1000,
+            "idle-conn-timeout": 30,
+            "disable-compression": true
+        },
+        "to-sidecar": {
+            "timeout": 2,
+            "max-idle-conns": 1000,
+            "idle-conn-timeout": 30,
+            "disable-compression": true
+        },
     }
 }

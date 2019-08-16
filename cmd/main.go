@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	routerversion "github.com/tiket-libre/canary-router/version"
 	"github.com/juju/errors"
+	routerversion "github.com/tiket-libre/canary-router/version"
 )
 
 var (

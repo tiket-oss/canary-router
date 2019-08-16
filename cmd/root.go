@@ -23,10 +23,17 @@ var defaultConfig = config.Config{
 		WriteTimeout: 15,
 		IdleTimeout:  120,
 	},
-	Client: config.HTTPClientConfig{
-		Timeout:         5,
-		MaxIdleConns:    100,
-		IdleConnTimeout: 30,
+	Client: config.MultiHTTPClientConfig{
+		MainAndCanary: config.HTTPClientConfig{
+			Timeout:         5,
+			MaxIdleConns:    1000,
+			IdleConnTimeout: 30,
+		},
+		Sidecar: config.HTTPClientConfig{
+			Timeout:         2,
+			MaxIdleConns:    1000,
+			IdleConnTimeout: 30,
+		},
 	},
 }
 

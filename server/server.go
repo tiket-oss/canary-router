@@ -42,16 +42,17 @@ type Server struct {
 func NewServer(config config.Config) (*Server, error) {
 	server := &Server{config: config}
 
-	proxies, err := canaryrouter.BuildProxies(config.Client, config.MainTarget, config.CanaryTarget)
+	proxies, err := canaryrouter.BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.CanaryTarget)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	server.proxies = proxies
 
-	tr := &http.Transport{
-		MaxIdleConns:       config.Client.MaxIdleConns,
-		IdleConnTimeout:    time.Duration(config.Client.IdleConnTimeout) * time.Second,
-		DisableCompression: config.Client.DisableCompression,
+	sidecarTransport := &http.Transport{
+		ResponseHeaderTimeout: time.Duration(config.Client.Sidecar.Timeout) * time.Second,
+		MaxIdleConns:          config.Client.Sidecar.MaxIdleConns,
+		IdleConnTimeout:       time.Duration(config.Client.Sidecar.IdleConnTimeout) * time.Second,
+		DisableCompression:    config.Client.Sidecar.DisableCompression,
 	}
 
 	sidecarURL, err := url.Parse(server.config.SidecarURL)
@@ -59,7 +60,7 @@ func NewServer(config config.Config) (*Server, error) {
 		return nil, fmt.Errorf("Failed when creating proxy to sidecar: %v", err)
 	}
 	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
-	server.sidecarProxy.Transport = tr
+	server.sidecarProxy.Transport = sidecarTransport
 	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
 		log.Printf("sidecar proxy error: %+v", err)
 		w.WriteHeader(StatusSidecarError)
