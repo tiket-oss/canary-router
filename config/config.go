@@ -21,7 +21,7 @@ type Config struct {
 	CircuitBreaker  CircuitBreaker        `mapstructure:"circuit-breaker"`
 	Instrumentation InstrumentationConfig `mapstructure:"instrumentation"`
 	Server          HTTPServerConfig      `mapstructure:"router-server"`
-	Client          HTTPClientConfig      `mapstructure:"proxy-client"`
+	Client          MultiHTTPClientConfig `mapstructure:"proxy-client"`
 }
 
 // InstrumentationConfig holds the configuration values specific to the instrumentation aspect.
@@ -42,6 +42,12 @@ type HTTPServerConfig struct {
 	ReadTimeout  int    `mapstructure:"read-timeout"`
 	WriteTimeout int    `mapstructure:"write-timeout"`
 	IdleTimeout  int    `mapstructure:"idle-timeout"`
+}
+
+// MultiHTTPClientConfig holds the configuration for instantiating main&canary and sidecar proxy http.Client
+type MultiHTTPClientConfig struct {
+	MainAndCanary HTTPClientConfig `mapstructure:"to-main-and-canary"`
+	Sidecar       HTTPClientConfig `mapstructure:"to-sidecar"`
 }
 
 // HTTPClientConfig holds the configuration for instantiating http.Client

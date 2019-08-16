@@ -10,12 +10,18 @@ import (
 func Test_mergeConfig(t *testing.T) {
 	defaultConfig := config.Config{
 		Server: config.HTTPServerConfig{ReadTimeout: 5, WriteTimeout: 15, IdleTimeout: 120},
-		Client: config.HTTPClientConfig{Timeout: 5, MaxIdleConns: 100, IdleConnTimeout: 30},
+		Client: config.MultiHTTPClientConfig{
+			MainAndCanary: config.HTTPClientConfig{Timeout: 5, MaxIdleConns: 1000, IdleConnTimeout: 30},
+			Sidecar:       config.HTTPClientConfig{Timeout: 2, MaxIdleConns: 1000, IdleConnTimeout: 30},
+		},
 	}
 
 	allSetConfig := config.Config{
 		Server: config.HTTPServerConfig{ReadTimeout: 6, WriteTimeout: 7, IdleTimeout: 130},
-		Client: config.HTTPClientConfig{Timeout: 8, MaxIdleConns: 200, IdleConnTimeout: 40},
+		Client: config.MultiHTTPClientConfig{
+			MainAndCanary: config.HTTPClientConfig{Timeout: 6, MaxIdleConns: 2000, IdleConnTimeout: 40},
+			Sidecar:       config.HTTPClientConfig{Timeout: 8, MaxIdleConns: 3000, IdleConnTimeout: 50},
+		},
 	}
 
 	type args struct {
@@ -31,7 +37,10 @@ func Test_mergeConfig(t *testing.T) {
 		{name: "if not set, set default", args: args{
 			targetConfig: &config.Config{
 				Server: config.HTTPServerConfig{ReadTimeout: 0, WriteTimeout: 0, IdleTimeout: 0},
-				Client: config.HTTPClientConfig{Timeout: 0, MaxIdleConns: 0, IdleConnTimeout: 0},
+				Client: config.MultiHTTPClientConfig{
+					MainAndCanary: config.HTTPClientConfig{Timeout: 0, MaxIdleConns: 0, IdleConnTimeout: 0},
+					Sidecar:       config.HTTPClientConfig{Timeout: 0, MaxIdleConns: 0, IdleConnTimeout: 0},
+				},
 			}, defaultConfig: defaultConfig,
 		}, wantConfig: defaultConfig},
 		{name: "if all set, leave it", args: args{
