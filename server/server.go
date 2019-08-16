@@ -62,7 +62,6 @@ func NewServer(config config.Config) (*Server, error) {
 	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
 	server.sidecarProxy.Transport = sidecarTransport
 	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
-		log.Printf("sidecar proxy error: %+v", err)
 		w.WriteHeader(StatusSidecarError)
 		_, errWrite := w.Write([]byte(err.Error()))
 		if errWrite != nil {
