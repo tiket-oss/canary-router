@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 
+	"github.com/imdario/mergo"
 	"github.com/juju/errors"
 
 	"github.com/tiket-libre/canary-router/config"
@@ -16,6 +17,18 @@ import (
 
 var appConfig config.Config
 var cfgFile string
+var defaultConfig = config.Config{
+	Server: config.HTTPServerConfig{
+		ReadTimeout:  5,
+		WriteTimeout: 15,
+		IdleTimeout:  120,
+	},
+	Client: config.HTTPClientConfig{
+		Timeout:         5,
+		MaxIdleConns:    100,
+		IdleConnTimeout: 30,
+	},
+}
 
 func init() {
 	cobra.OnInitialize(initConfig)
@@ -36,11 +49,18 @@ func initConfig() {
 		log.Fatalf("Can't read config: %v", errors.ErrorStack(err))
 	}
 
-	err := viper.Unmarshal(&appConfig)
-	log.Printf("%+v", appConfig)
-	if err != nil {
+	if err := viper.Unmarshal(&appConfig); err != nil {
 		log.Fatalf("Unable to decode into config struct: %v", errors.ErrorStack(err))
 	}
+
+	if err := mergeConfig(&appConfig, defaultConfig); err != nil {
+		log.Fatalf("Unable to set default values: %v", errors.ErrorStack(err))
+	}
+	log.Printf("%+v", appConfig)
+}
+
+func mergeConfig(targetConfig *config.Config, defaultConfig config.Config) error {
+	return mergo.Merge(targetConfig, defaultConfig)
 }
 
 var rootCmd = &cobra.Command{
