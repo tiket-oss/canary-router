@@ -1,6 +1,7 @@
 package canaryrouter
 
 import (
+	"crypto/tls"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -28,14 +29,14 @@ func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTar
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
+	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression, configClient.TLS)
 	proxyMain.ErrorLog = log.New(os.Stderr, "[proxy-main] ", log.LstdFlags|log.Llongfile)
 
 	proxyCanary, err := newReverseProxy(canaryTargetURL)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	proxyCanary.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression)
+	proxyCanary.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression, configClient.TLS)
 	proxyCanary.ErrorLog = log.New(os.Stderr, "[proxy-canary] ", log.LstdFlags|log.Llongfile)
 
 	proxies := &Proxy{
@@ -46,11 +47,12 @@ func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTar
 	return proxies, nil
 }
 
-func newTransport(maxIdleConns, idleConnTimeout int, disableCompression bool) *http.Transport {
+func newTransport(maxIdleConns, idleConnTimeout int, disableCompression bool, tlsConfig config.TLS) *http.Transport {
 	return &http.Transport{
 		MaxIdleConns:       maxIdleConns,
 		IdleConnTimeout:    time.Duration(idleConnTimeout) * time.Second,
 		DisableCompression: disableCompression,
+		TLSClientConfig:    &tls.Config{InsecureSkipVerify: tlsConfig.InsecureSkipVerify},
 	}
 }
 
