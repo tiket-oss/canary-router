@@ -1,6 +1,8 @@
 {
     "main-target": "http://server-mono.localhost",
+    "main-header-host": "server-mono",
     "canary-target": "http://server-micro.localhost",
+    "canary-header-host": "server-micro",
     "sidecar-url": "http://sidecar.localhost",
     "trim-prefix": "/prefix/path/to/strip",
     "circuit-breaker": {
