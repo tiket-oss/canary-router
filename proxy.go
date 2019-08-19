@@ -62,5 +62,13 @@ func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
 		return nil, errors.Trace(err)
 	}
 
-	return httputil.NewSingleHostReverseProxy(url), nil
+	proxy := httputil.NewSingleHostReverseProxy(url)
+
+	director := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		director(req)
+		req.Host = req.URL.Host
+	}
+
+	return proxy, nil
 }
