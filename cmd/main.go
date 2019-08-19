@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	routerversion.Info = routerversion.Type{Version: version, Commit: commit, Date: date}
+	routerversion.Info = routerversion.Type{Version: version, Commit: routerversion.ShortHash(commit), Date: date}
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(errors.ErrorStack(err))
