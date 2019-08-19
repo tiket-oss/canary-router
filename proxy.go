@@ -23,16 +23,16 @@ type Proxy struct {
 
 // BuildProxies constructs a Proxy object with mainTargetURL as the URL for Main proxy
 // and canaryTargetURL as the URL for Canary proxy
-func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, canaryTargetURL string) (*Proxy, error) {
+func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, mainHeaderHost, canaryTargetURL, canaryHeaderHost string) (*Proxy, error) {
 
-	proxyMain, err := newReverseProxy(mainTargetURL)
+	proxyMain, err := newReverseProxy(mainTargetURL, mainHeaderHost)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression, configClient.TLS)
 	proxyMain.ErrorLog = log.New(os.Stderr, "[proxy-main] ", log.LstdFlags|log.Llongfile)
 
-	proxyCanary, err := newReverseProxy(canaryTargetURL)
+	proxyCanary, err := newReverseProxy(canaryTargetURL, canaryHeaderHost)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -56,11 +56,23 @@ func newTransport(maxIdleConns, idleConnTimeout int, disableCompression bool, tl
 	}
 }
 
-func newReverseProxy(target string) (*httputil.ReverseProxy, error) {
+func newReverseProxy(target, customHost string) (*httputil.ReverseProxy, error) {
 	url, err := url.ParseRequestURI(target)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	return httputil.NewSingleHostReverseProxy(url), nil
+	proxy := httputil.NewSingleHostReverseProxy(url)
+
+	director := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		director(req)
+		if customHost != "" {
+			req.Host = customHost
+		} else {
+			req.Host = req.URL.Host
+		}
+	}
+
+	return proxy, nil
 }
