@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,9 @@ import (
 
 const infinityDuration time.Duration = 0x7fffffffffffffff
 
+// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
+const StatusSidecarError = http.StatusServiceUnavailable
+
 // Server holds necessary components as a proxy server
 type Server struct {
 	config       config.Config
@@ -39,16 +43,18 @@ type Server struct {
 func NewServer(config config.Config) (*Server, error) {
 	server := &Server{config: config}
 
-	proxies, err := canaryrouter.BuildProxies(config.Client, config.MainTarget, config.CanaryTarget)
+	proxies, err := canaryrouter.BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.MainHeaderHost, config.CanaryTarget, config.CanaryHeaderHost)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 	server.proxies = proxies
 
-	tr := &http.Transport{
-		MaxIdleConns:       config.Client.MaxIdleConns,
-		IdleConnTimeout:    time.Duration(config.Client.IdleConnTimeout) * time.Second,
-		DisableCompression: config.Client.DisableCompression,
+	sidecarTransport := &http.Transport{
+		ResponseHeaderTimeout: time.Duration(config.Client.Sidecar.Timeout) * time.Second,
+		MaxIdleConns:          config.Client.Sidecar.MaxIdleConns,
+		IdleConnTimeout:       time.Duration(config.Client.Sidecar.IdleConnTimeout) * time.Second,
+		DisableCompression:    config.Client.Sidecar.DisableCompression,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: config.Client.Sidecar.TLS.InsecureSkipVerify},
 	}
 
 	sidecarURL, err := url.Parse(server.config.SidecarURL)
@@ -56,7 +62,14 @@ func NewServer(config config.Config) (*Server, error) {
 		return nil, fmt.Errorf("Failed when creating proxy to sidecar: %v", err)
 	}
 	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
-	server.sidecarProxy.Transport = tr
+	server.sidecarProxy.Transport = sidecarTransport
+	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+		w.WriteHeader(StatusSidecarError)
+		_, errWrite := w.Write([]byte(err.Error()))
+		if errWrite != nil {
+			log.Printf("Failed to write sidecar error body")
+		}
+	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
 		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
@@ -69,6 +82,12 @@ func NewServer(config config.Config) (*Server, error) {
 func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
 	serveMux.HandleFunc("/", s.ServeHTTP)
+	serveMux.HandleFunc("/application/health", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("OK")); err != nil {
+			log.Printf("Failed to write health check body")
+		}
+	}))
 
 	address := fmt.Sprintf("%s:%s", s.config.Server.Host, s.config.Server.Port)
 	server := &http.Server{
@@ -180,6 +199,10 @@ func (s *Server) callSidecar(req *http.Request) (int, error) {
 
 	recorder := httptest.NewRecorder()
 	s.sidecarProxy.ServeHTTP(recorder, outreq)
+
+	if recorder.Code == StatusSidecarError {
+		return recorder.Code, errors.New(recorder.Body.String())
+	}
 
 	return recorder.Code, nil
 }

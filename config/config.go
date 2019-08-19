@@ -2,9 +2,11 @@ package config
 
 // Config holds the configuration values to be used throughout the application.
 type Config struct {
-	MainTarget   string `mapstructure:"main-target"`
-	CanaryTarget string `mapstructure:"canary-target"`
-	SidecarURL   string `mapstructure:"sidecar-url"`
+	MainTarget       string `mapstructure:"main-target"`
+	MainHeaderHost   string `mapstructure:"main-header-host"`
+	CanaryTarget     string `mapstructure:"canary-target"`
+	CanaryHeaderHost string `mapstructure:"canary-header-host"`
+	SidecarURL       string `mapstructure:"sidecar-url"`
 
 	// TrimPrefix if set will modify subsequent request path to main, canary, and sidecar service
 	// by removing TrimPrefix substring in the request path string
@@ -21,7 +23,7 @@ type Config struct {
 	CircuitBreaker  CircuitBreaker        `mapstructure:"circuit-breaker"`
 	Instrumentation InstrumentationConfig `mapstructure:"instrumentation"`
 	Server          HTTPServerConfig      `mapstructure:"router-server"`
-	Client          HTTPClientConfig      `mapstructure:"proxy-client"`
+	Client          MultiHTTPClientConfig `mapstructure:"proxy-client"`
 }
 
 // InstrumentationConfig holds the configuration values specific to the instrumentation aspect.
@@ -45,10 +47,22 @@ type HTTPServerConfig struct {
 	IdleTimeout  int    `mapstructure:"idle-timeout"`
 }
 
+// MultiHTTPClientConfig holds the configuration for instantiating main&canary and sidecar proxy http.Client
+type MultiHTTPClientConfig struct {
+	MainAndCanary HTTPClientConfig `mapstructure:"to-main-and-canary"`
+	Sidecar       HTTPClientConfig `mapstructure:"to-sidecar"`
+}
+
 // HTTPClientConfig holds the configuration for instantiating http.Client
 type HTTPClientConfig struct {
 	Timeout            int  `mapstructure:"timeout"`
 	MaxIdleConns       int  `mapstructure:"max-idle-conns"`
 	IdleConnTimeout    int  `mapstructure:"idle-conn-timeout"`
 	DisableCompression bool `mapstructure:"disable-compression"`
+	TLS                TLS  `mapstructure:"tls"`
+}
+
+// TLS holds the configuration of TLS
+type TLS struct {
+	InsecureSkipVerify bool `mapstructure:"insecure-skip-verify"`
 }
