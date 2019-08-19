@@ -13,6 +13,7 @@ func (t Type) String() string {
 	return fmt.Sprintf("%s-%s-%s", t.Version, t.Commit, t.Date)
 }
 
+// ShortHash returns first 7 chars of Git commit hash
 func ShortHash(hash string) string {
 	if len(hash) >= 7 {
 		return hash[:7]
