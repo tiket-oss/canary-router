@@ -22,13 +22,19 @@
             "timeout": 5,
             "max-idle-conns": 1000,
             "idle-conn-timeout": 30,
-            "disable-compression": true
+            "disable-compression": true,
+            "tls": {
+                "insecure-skip-verify": true
+            }
         },
         "to-sidecar": {
             "timeout": 2,
             "max-idle-conns": 1000,
             "idle-conn-timeout": 30,
-            "disable-compression": true
+            "disable-compression": true,
+            "tls": {
+                "insecure-skip-verify": true
+            }
         },
     }
 }

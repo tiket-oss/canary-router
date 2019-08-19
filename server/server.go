@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -53,6 +54,7 @@ func NewServer(config config.Config) (*Server, error) {
 		MaxIdleConns:          config.Client.Sidecar.MaxIdleConns,
 		IdleConnTimeout:       time.Duration(config.Client.Sidecar.IdleConnTimeout) * time.Second,
 		DisableCompression:    config.Client.Sidecar.DisableCompression,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: config.Client.Sidecar.TLS.InsecureSkipVerify},
 	}
 
 	sidecarURL, err := url.Parse(server.config.SidecarURL)

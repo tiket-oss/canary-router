@@ -56,4 +56,10 @@ type HTTPClientConfig struct {
 	MaxIdleConns       int  `mapstructure:"max-idle-conns"`
 	IdleConnTimeout    int  `mapstructure:"idle-conn-timeout"`
 	DisableCompression bool `mapstructure:"disable-compression"`
+	TLS                TLS  `mapstructure:"tls"`
+}
+
+// TLS holds the configuration of TLS
+type TLS struct {
+	InsecureSkipVerify bool `mapstructure:"insecure-skip-verify"`
 }
