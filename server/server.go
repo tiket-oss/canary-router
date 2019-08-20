@@ -33,10 +33,11 @@ const StatusSidecarError = http.StatusServiceUnavailable
 
 // Server holds necessary components as a proxy server
 type Server struct {
-	config       config.Config
-	proxies      *canaryrouter.Proxy
-	sidecarProxy *httputil.ReverseProxy
-	canaryBucket *ratelimit.Bucket
+	config                   config.Config
+	proxies                  *canaryrouter.Proxy
+	sidecarProxy             *httputil.ReverseProxy
+	canaryRequestLimitBucket *ratelimit.Bucket
+	canaryErrorLimitBucket   *ratelimit.Bucket
 }
 
 // NewServer initiates a new proxy server
@@ -72,7 +73,12 @@ func NewServer(config config.Config) (*Server, error) {
 	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
-		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
+		server.canaryRequestLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
+	}
+
+	if config.CircuitBreaker.ErrorLimitCanary != 0 {
+		server.canaryErrorLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.ErrorLimitCanary))
+
 	}
 
 	return server, nil
@@ -108,9 +114,14 @@ func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	s.viaProxy()(res, req)
 }
 
-// IsCanaryLimited checks if circuit breaker (canary request limiter) feature is enabled
-func (s *Server) IsCanaryLimited() bool {
-	return s.canaryBucket != nil
+// IsCanaryRequestLimited checks if circuit breaker (canary request limiter) feature is enabled
+func (s *Server) IsCanaryRequestLimited() bool {
+	return s.canaryRequestLimitBucket != nil
+}
+
+// IsCanaryErrorLimited checks if circuit breaker (canary error limiter) feature is enabled
+func (s *Server) IsCanaryErrorLimited() bool {
+	return s.canaryErrorLimitBucket != nil
 }
 
 func (s *Server) viaProxy() http.HandlerFunc {
@@ -210,7 +221,7 @@ func (s *Server) callSidecar(req *http.Request) (int, error) {
 func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
+		if s.IsCanaryRequestLimited() && s.canaryRequestLimitBucket.Available() <= 0 {
 			req = setRoutingReason(req, "Canary limit reached")
 
 			s.serveMain(w, req)
@@ -231,7 +242,7 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 			req = setRoutingReason(req, "Sidecar returns status code %d", statusCode)
 			s.serveMain(w, req)
 		case canaryrouter.StatusCodeCanary:
-			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
+			if s.IsCanaryRequestLimited() && s.canaryRequestLimitBucket.TakeAvailable(1) == 0 {
 				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", statusCode)
 				s.serveMain(w, req)
 			} else {
