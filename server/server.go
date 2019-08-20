@@ -84,6 +84,9 @@ func NewServer(config config.Config) (*Server, error) {
 	return server, nil
 }
 
+func isErrorStatusCode(statusCode int) bool {
+	return !(statusCode >= 200 && statusCode < 300)
+}
 // Run initialize a new HTTP server
 func (s *Server) Run() error {
 	serveMux := http.NewServeMux()

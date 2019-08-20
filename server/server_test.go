@@ -427,3 +427,26 @@ func Test_trimRequestPathPrefix(t *testing.T) {
 		})
 	}
 }
+
+func Test_isErrorStatusCode(t *testing.T) {
+	type args struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "200", args:args{statusCode: 200}, want: false},
+		{name: "204", args:args{statusCode: 204}, want: false},
+		{name: "300", args:args{statusCode: 300}, want: true},
+		{name: "500", args:args{statusCode: 500}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isErrorStatusCode(tt.args.statusCode); got != tt.want {
+				t.Errorf("isErrorStatusCode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
