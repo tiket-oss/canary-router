@@ -205,42 +205,13 @@ func Test_Server_integration(t *testing.T) {
 			thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{RequestLimitCanary: canaryRequestLimit}))
 			defer thisRouter.Close()
 
-			gotCanaryCount, gotMainCount := 0, 0
-
-			chanMainHit := make(chan int, 10)
-			chanCanaryHit := make(chan int, 10)
-
 			totalRequest := 100
+			var listRestRequest []restRequest
 			for i := 1; i <= totalRequest; i++ {
-				i := i
-				go func(chanMainHit chan int, chanCanaryHit chan int) {
-
-					restRequest := restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: fmt.Sprintf("%d", i),}
-					resp, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
-					defer resp.Body.Close()
-					switch string(gotBody) {
-					case backendMainBody:
-						chanMainHit <- 1
-					case backendCanaryBody:
-						chanCanaryHit <- 1
-					default:
-						t.Errorf("Not supposed to be other content")
-					}
-				}(chanMainHit, chanCanaryHit)
-
+				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: fmt.Sprintf("%d", i),})
 			}
 
-			for i := 0; i < totalRequest; i++ {
-				select {
-				case mainHit := <-chanMainHit:
-					gotMainCount += mainHit
-				case canaryHit := <-chanCanaryHit:
-					gotCanaryCount += canaryHit
-				}
-			}
-
-			close(chanMainHit)
-			close(chanCanaryHit)
+			gotMainCount, gotCanaryCount := restClientCallConcurrentlyToMainAndCanary(t, thisRouter.Client(), backendMainBody, backendCanaryBody, listRestRequest)
 
 			if (uint64(gotCanaryCount) != canaryRequestLimit) || (gotMainCount != (totalRequest - gotCanaryCount)) {
 				t.Errorf("gotCanaryCount:%d gotMainCount:%d canaryRequestLimit:%d totalRequest:%d", gotCanaryCount, gotMainCount, canaryRequestLimit, totalRequest)
@@ -349,6 +320,43 @@ func restClientCall(t *testing.T, client *http.Client, restRequest restRequest) 
 	}
 
 	return resp, gotBody
+}
+
+func restClientCallConcurrentlyToMainAndCanary(t *testing.T, client *http.Client, backendMainBody, backendCanaryBody string, listRestRequest []restRequest) (gotMainCount, gotCanaryCount int) {
+	chanMainHit := make(chan int, 10)
+	chanCanaryHit := make(chan int, 10)
+
+	for _, restRequest := range listRestRequest {
+		restRequest := restRequest
+		go func(chanMainHit chan int, chanCanaryHit chan int) {
+
+			resp, gotBody := restClientCall(t, client, restRequest)
+			defer resp.Body.Close()
+			switch string(gotBody) {
+			case backendMainBody:
+				chanMainHit <- 1
+			case backendCanaryBody:
+				chanCanaryHit <- 1
+			default:
+				t.Errorf("Not supposed to be other content")
+			}
+		}(chanMainHit, chanCanaryHit)
+
+	}
+
+	for i := 0; i < len(listRestRequest); i++ {
+		select {
+		case mainHit := <-chanMainHit:
+			gotMainCount += mainHit
+		case canaryHit := <-chanCanaryHit:
+			gotCanaryCount += canaryHit
+		}
+	}
+
+	close(chanMainHit)
+	close(chanCanaryHit)
+
+	return
 }
 
 func Test_convertToBool(t *testing.T) {
