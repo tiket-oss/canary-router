@@ -79,6 +79,14 @@ func NewServer(config config.Config) (*Server, error) {
 	if config.CircuitBreaker.ErrorLimitCanary != 0 {
 		server.canaryErrorLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.ErrorLimitCanary))
 
+		server.proxies.Canary.ModifyResponse = func(resp *http.Response) error {
+			if isErrorStatusCode(resp.StatusCode) {
+				log.Printf("error: %d", resp.StatusCode)
+				server.canaryErrorLimitBucket.TakeAvailable(1)
+			}
+
+			return nil
+		}
 	}
 
 	return server, nil
@@ -87,6 +95,7 @@ func NewServer(config config.Config) (*Server, error) {
 func isErrorStatusCode(statusCode int) bool {
 	return !(statusCode >= 200 && statusCode < 300)
 }
+
 // Run initialize a new HTTP server
 func (s *Server) Run() error {
 	serveMux := http.NewServeMux()
@@ -225,7 +234,15 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
 		if s.IsCanaryRequestLimited() && s.canaryRequestLimitBucket.Available() <= 0 {
-			req = setRoutingReason(req, "Canary limit reached")
+			req = setRoutingReason(req, "Canary request limit reached")
+
+			s.serveMain(w, req)
+			return
+		}
+
+		if s.IsCanaryErrorLimited() && s.canaryErrorLimitBucket.Available() <= 0 {
+			log.Printf("Error reached")
+			req = setRoutingReason(req, "Canary error limit reached")
 
 			s.serveMain(w, req)
 			return

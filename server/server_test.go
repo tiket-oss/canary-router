@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/juju/ratelimit"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -219,7 +220,42 @@ func Test_Server_integration(t *testing.T) {
 		})
 
 		t.Run("error-limit-canary", func(t *testing.T) {
-			// TODO: error-limit-canary integration test
+			canaryErrorLimit := uint64(24)
+
+			backendCanaryWithErrorBody := "Hello, I'm Canary (but broken)!"
+			bucketGoodRequest := ratelimit.NewBucket(infinityDuration, int64(canaryErrorLimit))
+			backendCanaryWithError := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if bucketGoodRequest.TakeAvailable(1) == 0 {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Log("MASUK ERROR")
+				} else {
+					w.WriteHeader(http.StatusOK)
+				}
+
+				_, err := w.Write([]byte(backendCanaryWithErrorBody))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}))
+			defer backendCanaryWithError.Close()
+
+			sideCarServerFiftyFifty := setupCanaryServerFiftyFifty(t)
+			defer sideCarServerFiftyFifty.Close()
+
+			thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanaryWithError.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{ErrorLimitCanary: canaryErrorLimit}))
+			defer thisRouter.Close()
+
+			totalRequest := 120
+			var listRestRequest []restRequest
+			for i := 1; i <= totalRequest; i++ {
+				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: fmt.Sprintf("%d", i),})
+			}
+
+			gotMainCount, gotCanaryCount := restClientCallConcurrentlyToMainAndCanary(t, thisRouter.Client(), backendMainBody, backendCanaryWithErrorBody, listRestRequest)
+
+			if (uint64(gotCanaryCount) != canaryErrorLimit) || (gotMainCount != (totalRequest - gotCanaryCount)) {
+				t.Errorf("gotCanaryCount:%d gotMainCount:%d canaryErrorLimit:%d totalRequest:%d", gotCanaryCount, gotMainCount, canaryErrorLimit, totalRequest)
+			}
 
 		})
 	})
