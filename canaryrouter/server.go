@@ -164,13 +164,13 @@ func (s *Server) viaProxy() http.HandlerFunc {
 
 func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "main")
-
+	log.Infof("Routed to main target: %+v", req)
 	s.proxies.Main.ServeHTTP(w, req)
 }
 
 func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "canary")
-
+	log.Infof("Routed to canary target: %+v", req)
 	s.proxies.Canary.ServeHTTP(w, req)
 }
 
