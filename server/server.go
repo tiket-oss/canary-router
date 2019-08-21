@@ -241,7 +241,7 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		}
 
 		if s.IsCanaryErrorLimited() && s.canaryErrorLimitBucket.Available() <= 0 {
-			log.Printf("Error reached")
+			// log.Printf("Error reached")
 			req = setRoutingReason(req, "Canary error limit reached")
 
 			s.serveMain(w, req)

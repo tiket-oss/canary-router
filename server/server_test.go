@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/juju/ratelimit"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,20 +11,17 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-
-	"github.com/tiket-libre/canary-router/config"
-
+	"github.com/juju/ratelimit"
 	canaryrouter "github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/config"
 )
 
 type restRequest struct {
-	httpHeader http.Header
-	httpMethod string
-	targetURL string
+	httpHeader  http.Header
+	httpMethod  string
+	targetURL   string
 	bodyPayload string
 }
-
-//resp, gotBody := restClientCall(t, thisRouter.Client(), http.MethodPost, thisRouter.URL+"/foo/bar", map[string]string{}, fmt.Sprintf("%d", i))
 
 type circuitBreakerParam struct {
 	RequestLimitCanary uint64
@@ -52,7 +48,7 @@ func Test_Server_integration(t *testing.T) {
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCircuitBreakerParam))
 		defer thisRouter.Close()
 
-		restRequest := restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: "foo bar body",}
+		restRequest := restRequest{httpHeader: http.Header{}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: "foo bar body"}
 		_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 		if string(gotBody) != backendMainBody {
 			t.Errorf("Not forwarded to Main. Gotbody: %s", string(gotBody))
@@ -67,7 +63,7 @@ func Test_Server_integration(t *testing.T) {
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
-		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"true"}}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: "foo bar body",}
+		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"true"}}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: "foo bar body"}
 		_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 		if string(gotBody) != backendCanaryBody {
 			t.Errorf("Not forwarded to Canary. Gotbody: %s", string(gotBody))
@@ -81,7 +77,7 @@ func Test_Server_integration(t *testing.T) {
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
-		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"NOTVALID"}}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: "foo bar body",}
+		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"NOTVALID"}}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: "foo bar body"}
 		_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 		if string(gotBody) != backendMainBody {
 			t.Errorf("Not forwarded to Main. Gotbody: %s", string(gotBody))
@@ -95,7 +91,7 @@ func Test_Server_integration(t *testing.T) {
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanaryURL.String(), noCircuitBreakerParam))
 		defer thisRouter.Close()
 
-		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"NOTVALID"}}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: "foo bar body",}
+		restRequest := restRequest{httpHeader: http.Header{"X-Canary": {"NOTVALID"}}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: "foo bar body"}
 		_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 		if string(gotBody) != backendCanaryBody {
 			t.Errorf("Not forwarded to Canary. Gotbody: %s", string(gotBody))
@@ -124,7 +120,7 @@ func Test_Server_integration(t *testing.T) {
 				thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCircuitBreakerParam))
 				defer thisRouter.Close()
 
-				restRequest := restRequest{httpHeader: http.Header{"X-Canary": {tc.argXCanary}}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: "foo bar body",}
+				restRequest := restRequest{httpHeader: http.Header{"X-Canary": {tc.argXCanary}}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: "foo bar body"}
 				_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 				if string(gotBody) != tc.wantBody {
 					t.Errorf("X-Canary:%s Gotbody: '%s' Wantbody: '%s'", tc.argXCanary, string(gotBody), tc.wantBody)
@@ -175,7 +171,7 @@ func Test_Server_integration(t *testing.T) {
 					t.Run(httpMethod, func(t *testing.T) {
 						//t.Parallel()
 
-						restRequest := restRequest{httpHeader: http.Header{}, httpMethod: httpMethod, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: originBodyContent,}
+						restRequest := restRequest{httpHeader: http.Header{}, httpMethod: httpMethod, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: originBodyContent}
 						_, gotBody := restClientCall(t, thisRouter.Client(), restRequest)
 
 						if string(gotBody) != string(tc.wantBody) {
@@ -209,7 +205,7 @@ func Test_Server_integration(t *testing.T) {
 			totalRequest := 100
 			var listRestRequest []restRequest
 			for i := 1; i <= totalRequest; i++ {
-				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: fmt.Sprintf("%d", i),})
+				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: fmt.Sprintf("%d", i)})
 			}
 
 			gotMainCount, gotCanaryCount := restClientCallConcurrentlyToMainAndCanary(t, thisRouter.Client(), backendMainBody, backendCanaryBody, listRestRequest)
@@ -220,22 +216,22 @@ func Test_Server_integration(t *testing.T) {
 		})
 
 		t.Run("error-limit-canary", func(t *testing.T) {
-			canaryErrorLimit := uint64(24)
+			canaryErrorLimit := uint64(15)
 
 			backendCanaryWithErrorBody := "Hello, I'm Canary (but broken)!"
 			bucketGoodRequest := ratelimit.NewBucket(infinityDuration, int64(canaryErrorLimit))
 			backendCanaryWithError := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if bucketGoodRequest.TakeAvailable(1) == 0 {
-					w.WriteHeader(http.StatusInternalServerError)
-					t.Log("MASUK ERROR")
-				} else {
+				if bucketGoodRequest.TakeAvailable(1) > 0 {
 					w.WriteHeader(http.StatusOK)
+				} else {
+					w.WriteHeader(http.StatusInternalServerError)
 				}
 
 				_, err := w.Write([]byte(backendCanaryWithErrorBody))
 				if err != nil {
 					t.Fatal(err)
 				}
+				// time.Sleep(1 * time.Millisecond)
 			}))
 			defer backendCanaryWithError.Close()
 
@@ -245,10 +241,10 @@ func Test_Server_integration(t *testing.T) {
 			thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanaryWithError.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{ErrorLimitCanary: canaryErrorLimit}))
 			defer thisRouter.Close()
 
-			totalRequest := 120
+			totalRequest := 100
 			var listRestRequest []restRequest
 			for i := 1; i <= totalRequest; i++ {
-				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod:  http.MethodPost, targetURL:   thisRouter.URL+"/foo/bar", bodyPayload: fmt.Sprintf("%d", i),})
+				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: fmt.Sprintf("%d", i)})
 			}
 
 			gotMainCount, gotCanaryCount := restClientCallConcurrentlyToMainAndCanary(t, thisRouter.Client(), backendMainBody, backendCanaryWithErrorBody, listRestRequest)
@@ -473,10 +469,10 @@ func Test_isErrorStatusCode(t *testing.T) {
 		args args
 		want bool
 	}{
-		{name: "200", args:args{statusCode: 200}, want: false},
-		{name: "204", args:args{statusCode: 204}, want: false},
-		{name: "300", args:args{statusCode: 300}, want: true},
-		{name: "500", args:args{statusCode: 500}, want: true},
+		{name: "200", args: args{statusCode: 200}, want: false},
+		{name: "204", args: args{statusCode: 204}, want: false},
+		{name: "300", args: args{statusCode: 300}, want: true},
+		{name: "500", args: args{statusCode: 500}, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
