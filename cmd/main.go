@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/imdario/mergo"
 	"github.com/juju/errors"
 	log "github.com/sirupsen/logrus"
@@ -9,7 +11,6 @@ import (
 	"github.com/tiket-libre/canary-router/canaryrouter"
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
-	routerversion "github.com/tiket-libre/canary-router/version"
 )
 
 var (
@@ -43,8 +44,6 @@ var (
 
 func main() {
 	cobra.OnInitialize(initConfig)
-
-	routerversion.Info = routerversion.Type{Version: version, Commit: routerversion.ShortHash(commit), Date: date}
 	rootCmd := &cobra.Command{
 		Use:   "canary-router",
 		Short: "A HTTP request forwarding tool",
@@ -54,7 +53,7 @@ func main() {
 				return errors.Trace(err)
 			}
 
-			server, err := canaryrouter.NewServer(appConfig, routerversion.Info.String())
+			server, err := canaryrouter.NewServer(appConfig, multiStageVersion())
 			if err != nil {
 				return errors.Trace(err)
 			}
@@ -73,7 +72,7 @@ func initConfig() {
 	// Don't forget to read config either from cfgFile or from home directory!
 	viper.SetConfigFile(cfgFile)
 
-	log.Printf("Canary Router version: %s", routerversion.Info)
+	log.Printf("Canary Router version: %s", multiStageVersion())
 	log.Printf("Loaded with config file: %s", cfgFile)
 
 	viper.SetConfigType("json")
@@ -92,4 +91,17 @@ func initConfig() {
 	}
 
 	log.Printf("%+v", appConfig)
+}
+
+func multiStageVersion() string {
+	return fmt.Sprintf("%s-%s-%s", version, commit, date)
+}
+
+// ShortHash returns first 7 chars of Git commit hash
+func shortHash(hash string) string {
+	if len(hash) >= 7 {
+		return hash[:7]
+	}
+
+	return hash
 }

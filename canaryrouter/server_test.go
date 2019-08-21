@@ -277,7 +277,7 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 		CircuitBreaker: config.CircuitBreaker{
 			RequestLimitCanary: canaryLimit,
 		}}
-	s, err := NewServer(c)
+	s, err := NewServer(c, "some-version")
 	if err != nil {
 		t.Fatal(errors.ErrorStack(err))
 	}

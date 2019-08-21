@@ -1,8 +1,8 @@
-package version
+package main
 
 import "testing"
 
-func Test_shortHash(t *testing.T) {
+func TestShortHash(t *testing.T) {
 	type args struct {
 		hash string
 	}
@@ -18,7 +18,7 @@ func Test_shortHash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ShortHash(tt.args.hash); got != tt.want {
+			if got := shortHash(tt.args.hash); got != tt.want {
 				t.Errorf("shortHash() = %v, want %v", got, tt.want)
 			}
 		})

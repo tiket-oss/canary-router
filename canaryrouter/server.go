@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
+	log "github.com/sirupsen/logrus"
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
 )
@@ -266,12 +266,12 @@ func setRoutingReason(req *http.Request, reason string, reasonArg ...interface{}
 func (s *Server) recordMetricTarget(ctx context.Context, target string) {
 	ctx, err := instrumentation.AddTargetTag(ctx, target)
 	if err != nil {
-		log.Println(err)
+		log.Errorln(err)
 	}
 
 	ctx, err = instrumentation.AddVersionTag(ctx, s.version)
 	if err != nil {
-		log.Println(err)
+		log.Errorln(err)
 	}
 
 	instrumentation.RecordLatency(ctx)
