@@ -16,7 +16,7 @@ import (
 
 // Proxy holds the reference to instance of Main and Canary httputil.ReverseProxy
 // that is going to be used to route traffi	c
-type Proxy struct { // TODO: get a better name or combine with server
+type Proxy struct { // TODO: remove this class
 	Main   *httputil.ReverseProxy
 	Canary *httputil.ReverseProxy
 }
