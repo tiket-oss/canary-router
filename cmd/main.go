@@ -6,9 +6,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tiket-libre/canary-router/canaryrouter"
 	"github.com/tiket-libre/canary-router/config"
 	"github.com/tiket-libre/canary-router/instrumentation"
-	"github.com/tiket-libre/canary-router/server"
 	routerversion "github.com/tiket-libre/canary-router/version"
 )
 
@@ -54,7 +54,7 @@ func main() {
 				return errors.Trace(err)
 			}
 
-			server, err := server.NewServer(appConfig)
+			server, err := canaryrouter.NewServer(appConfig)
 			if err != nil {
 				return errors.Trace(err)
 			}

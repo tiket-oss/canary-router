@@ -1,4 +1,4 @@
-package server
+package canaryrouter
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tiket-libre/canary-router/canaryrouter"
 	"github.com/tiket-libre/canary-router/version"
 
 	"github.com/juju/errors"
@@ -33,7 +32,7 @@ const StatusSidecarError = http.StatusServiceUnavailable
 // Server holds necessary components as a proxy server
 type Server struct {
 	config       config.Config
-	proxies      *canaryrouter.Proxy
+	proxies      *Proxy
 	sidecarProxy *httputil.ReverseProxy
 	canaryBucket *ratelimit.Bucket
 }
@@ -42,7 +41,7 @@ type Server struct {
 func NewServer(config config.Config) (*Server, error) {
 	server := &Server{config: config}
 
-	proxies, err := canaryrouter.BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.MainHeaderHost, config.CanaryTarget, config.CanaryHeaderHost)
+	proxies, err := BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.MainHeaderHost, config.CanaryTarget, config.CanaryHeaderHost)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -226,10 +225,10 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 		}
 
 		switch statusCode {
-		case canaryrouter.StatusCodeMain:
+		case StatusCodeMain:
 			req = setRoutingReason(req, "Sidecar returns status code %d", statusCode)
 			s.serveMain(w, req)
-		case canaryrouter.StatusCodeCanary:
+		case StatusCodeCanary:
 			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
 				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", statusCode)
 				s.serveMain(w, req)

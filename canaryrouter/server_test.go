@@ -1,4 +1,4 @@
-package server
+package canaryrouter
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/tiket-libre/canary-router/canaryrouter"
 	"github.com/tiket-libre/canary-router/config"
 )
 
@@ -31,7 +30,7 @@ func Test_Server_integration(t *testing.T) {
 	backendCanary, _ := setupServer(t, []byte(backendCanaryBody), http.StatusOK, func(r *http.Request) {})
 	defer backendCanary.Close()
 	//
-	//_, err := canaryrouter.BuildProxies(backendMainURL.String(), backendCanaryURL.String())
+	//_, err := BuildProxies(backendMainURL.String(), backendCanaryURL.String())
 	//if err != nil {
 	//	t.Fatal(err)
 	//}
@@ -48,7 +47,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary=true [then] forward to Canary because X-Canary have higher precedence", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCanaryLimit))
@@ -61,7 +60,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Main)", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCanaryLimit))
@@ -74,7 +73,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Canary) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Canary)", func(t *testing.T) {
-		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanaryURL.String(), noCanaryLimit))
@@ -123,11 +122,11 @@ func Test_Server_integration(t *testing.T) {
 			wantBody      []byte
 		}{{
 			name:          "forward to Main",
-			argStatusCode: canaryrouter.StatusCodeMain,
+			argStatusCode: StatusCodeMain,
 			wantBody:      []byte(backendMainBody),
 		}, {
 			name:          "forward to Canary",
-			argStatusCode: canaryrouter.StatusCodeCanary,
+			argStatusCode: StatusCodeCanary,
 			wantBody:      []byte(backendCanaryBody),
 		}}
 
@@ -194,9 +193,9 @@ func Test_Server_integration(t *testing.T) {
 			}
 
 			if i%2 == 0 {
-				w.WriteHeader(canaryrouter.StatusCodeMain)
+				w.WriteHeader(StatusCodeMain)
 			} else {
-				w.WriteHeader(canaryrouter.StatusCodeCanary)
+				w.WriteHeader(StatusCodeCanary)
 			}
 
 		}))
