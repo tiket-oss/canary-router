@@ -29,11 +29,6 @@ func Test_Server_integration(t *testing.T) {
 	backendCanaryBody := "Hello, I'm Canary!"
 	backendCanary, _ := setupServer(t, []byte(backendCanaryBody), http.StatusOK, func(r *http.Request) {})
 	defer backendCanary.Close()
-	//
-	//_, err := BuildProxies(backendMainURL.String(), backendCanaryURL.String())
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
 
 	t.Run("[Given] No sideCarURL provided [then] default to Main", func(t *testing.T) {
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, "", noCanaryLimit))
