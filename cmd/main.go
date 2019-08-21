@@ -54,7 +54,7 @@ func main() {
 				return errors.Trace(err)
 			}
 
-			server, err := canaryrouter.NewServer(appConfig)
+			server, err := canaryrouter.NewServer(appConfig, routerversion.Info.String())
 			if err != nil {
 				return errors.Trace(err)
 			}

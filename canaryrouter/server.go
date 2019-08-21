@@ -16,8 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tiket-libre/canary-router/version"
-
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
 	"github.com/tiket-libre/canary-router/config"
@@ -31,6 +29,7 @@ const StatusSidecarError = http.StatusServiceUnavailable
 
 // Server holds necessary components as a proxy server
 type Server struct {
+	version      string
 	config       config.Config
 	proxies      *Proxy
 	sidecarProxy *httputil.ReverseProxy
@@ -38,8 +37,11 @@ type Server struct {
 }
 
 // NewServer initiates a new proxy server
-func NewServer(config config.Config) (*Server, error) {
-	server := &Server{config: config}
+func NewServer(config config.Config, version string) (*Server, error) {
+	server := &Server{
+		config:  config,
+		version: version,
+	}
 
 	proxies, err := BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.MainHeaderHost, config.CanaryTarget, config.CanaryHeaderHost)
 	if err != nil {
@@ -161,17 +163,13 @@ func (s *Server) viaProxy() http.HandlerFunc {
 }
 
 func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
-	defer func() {
-		recordMetricTarget(req.Context(), "main")
-	}()
+	defer s.recordMetricTarget(req.Context(), "main")
 
 	s.proxies.Main.ServeHTTP(w, req)
 }
 
 func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
-	defer func() {
-		recordMetricTarget(req.Context(), "canary")
-	}()
+	defer s.recordMetricTarget(req.Context(), "canary")
 
 	s.proxies.Canary.ServeHTTP(w, req)
 }
@@ -265,13 +263,13 @@ func setRoutingReason(req *http.Request, reason string, reasonArg ...interface{}
 	return req.WithContext(ctx)
 }
 
-func recordMetricTarget(ctx context.Context, target string) {
+func (s *Server) recordMetricTarget(ctx context.Context, target string) {
 	ctx, err := instrumentation.AddTargetTag(ctx, target)
 	if err != nil {
 		log.Println(err)
 	}
 
-	ctx, err = instrumentation.AddVersionTag(ctx, version.Info.String())
+	ctx, err = instrumentation.AddVersionTag(ctx, s.version)
 	if err != nil {
 		log.Println(err)
 	}
