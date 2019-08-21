@@ -16,14 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tiket-libre/canary-router/canaryrouter"
 	"github.com/tiket-libre/canary-router/version"
 
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
-	"github.com/tiket-libre/canary-router/instrumentation"
-
-	canaryrouter "github.com/tiket-libre/canary-router"
 	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/instrumentation"
 )
 
 const infinityDuration time.Duration = 0x7fffffffffffffff

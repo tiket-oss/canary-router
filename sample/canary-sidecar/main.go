@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	canaryrouter "github.com/tiket-libre/canary-router"
+	"github.com/tiket-libre/canary-router/canaryrouter"
 )
 
 func main() {

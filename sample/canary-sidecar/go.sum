@@ -42,6 +42,7 @@ github.com/tiket-libre/canary-router v0.0.0-20190804031620-2c5c48e8473f h1:ckXtb
 github.com/tiket-libre/canary-router v0.0.0-20190804031620-2c5c48e8473f/go.mod h1:0jgf7TbvQxB5jmuJl1LtpeexqOVPkoU625p/rzhwhRU=
 github.com/tiket-libre/canary-router v0.0.0-20190806041857-dad6efa6cd4a h1:pU5EyaBsazbMHK39/IWRS3/yGM42ZYMuRhZdzU/iXaE=
 github.com/tiket-libre/canary-router v0.0.0-20190806041857-dad6efa6cd4a/go.mod h1:g4agwd7dju/HOqejOePgbxQr8cZ+ae67erG0JUsfBsU=
+github.com/tiket-libre/canary-router v1.0.6 h1:hAstRrDxepkb3iA2AKF0Sod9EAlXXRoky6E0ulpJmEY=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
