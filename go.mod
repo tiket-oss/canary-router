@@ -9,6 +9,7 @@ require (
 	github.com/juju/loggo v0.0.0-20190526231331-6e530bcce5d8 // indirect
 	github.com/juju/ratelimit v1.0.1
 	github.com/juju/testing v0.0.0-20190723135506-ce30eb24acd2 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.3.2
 	go.opencensus.io v0.22.0
