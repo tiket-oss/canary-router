@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
 
 	"github.com/juju/errors"
 )

@@ -18,8 +18,8 @@ import (
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
 	log "github.com/sirupsen/logrus"
-	"github.com/tiket-libre/canary-router/config"
-	"github.com/tiket-libre/canary-router/instrumentation"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/instrumentation"
 )
 
 const infinityDuration time.Duration = 0x7fffffffffffffff

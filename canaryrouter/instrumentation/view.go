@@ -7,7 +7,7 @@ import (
 
 	"github.com/juju/errors"
 
-	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
 	"go.opencensus.io/stats/view"

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
 )
 
 func Test_Server_integration(t *testing.T) {

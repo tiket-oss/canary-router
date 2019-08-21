@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/tiket-libre/canary-router/canaryrouter"
-	"github.com/tiket-libre/canary-router/config"
-	"github.com/tiket-libre/canary-router/instrumentation"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/instrumentation"
 )
 
 var (
