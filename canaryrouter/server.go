@@ -3,14 +3,15 @@ package canaryrouter
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
+	stdlog "log"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +32,8 @@ const StatusSidecarError = http.StatusServiceUnavailable
 type Server struct {
 	version      string
 	config       config.Config
-	proxies      *Proxy
+	mainProxy    *httputil.ReverseProxy
+	canaryProxy  *httputil.ReverseProxy
 	sidecarProxy *httputil.ReverseProxy
 	canaryBucket *ratelimit.Bucket
 }
@@ -43,32 +45,39 @@ func NewServer(config config.Config, version string) (*Server, error) {
 		version: version,
 	}
 
-	proxies, err := BuildProxies(config.Client.MainAndCanary, config.MainTarget, config.MainHeaderHost, config.CanaryTarget, config.CanaryHeaderHost)
+	// === init main proxy ===
+	mainProxy, err := newReverseProxy(config.MainTarget, config.MainHeaderHost)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	server.proxies = proxies
+	mainProxy.Transport = newTransport(config.Client.MainAndCanary)
+	mainProxy.ErrorLog = stdlog.New(os.Stderr, "[proxy-main] ", stdlog.LstdFlags|stdlog.Llongfile)
+	server.mainProxy = mainProxy
 
-	sidecarTransport := &http.Transport{
-		ResponseHeaderTimeout: time.Duration(config.Client.Sidecar.Timeout) * time.Second,
-		MaxIdleConns:          config.Client.Sidecar.MaxIdleConns,
-		IdleConnTimeout:       time.Duration(config.Client.Sidecar.IdleConnTimeout) * time.Second,
-		DisableCompression:    config.Client.Sidecar.DisableCompression,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: config.Client.Sidecar.TLS.InsecureSkipVerify},
-	}
-
-	sidecarURL, err := url.Parse(server.config.SidecarURL)
+	// === init canary proxy ===
+	canaryProxy, err := newReverseProxy(config.CanaryTarget, config.CanaryHeaderHost)
 	if err != nil {
-		return nil, fmt.Errorf("Failed when creating proxy to sidecar: %v", err)
+		return nil, errors.Trace(err)
 	}
-	server.sidecarProxy = httputil.NewSingleHostReverseProxy(sidecarURL)
-	server.sidecarProxy.Transport = sidecarTransport
-	server.sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
-		w.WriteHeader(StatusSidecarError)
-		_, errWrite := w.Write([]byte(err.Error()))
-		if errWrite != nil {
-			log.Printf("Failed to write sidecar error body")
+	canaryProxy.Transport = newTransport(config.Client.MainAndCanary)
+	canaryProxy.ErrorLog = stdlog.New(os.Stderr, "[proxy-canary] ", stdlog.LstdFlags|stdlog.Llongfile)
+	server.canaryProxy = canaryProxy
+
+	// === init sidecar proxy ===
+	if server.isSidecarProvided() {
+		sidecarProxy, err := newReverseProxy(config.SidecarURL, "")
+		if err != nil {
+			return nil, errors.Trace(err)
 		}
+		sidecarProxy.Transport = newTransport(config.Client.Sidecar)
+		sidecarProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+			w.WriteHeader(StatusSidecarError)
+			_, errWrite := w.Write([]byte(err.Error()))
+			if errWrite != nil {
+				log.Printf("Failed to write sidecar error body")
+			}
+		}
+		server.sidecarProxy = sidecarProxy
 	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
@@ -113,10 +122,14 @@ func (s *Server) IsCanaryLimited() bool {
 	return s.canaryBucket != nil
 }
 
+func (s *Server) isSidecarProvided() bool {
+	return s.config.SidecarURL != ""
+}
+
 func (s *Server) viaProxy() http.HandlerFunc {
 	var handlerFunc http.HandlerFunc
 
-	if s.config.SidecarURL == "" {
+	if !s.isSidecarProvided() {
 		handlerFunc = s.serveMain
 	} else {
 		handlerFunc = s.viaProxyWithSidecar()
@@ -165,13 +178,13 @@ func (s *Server) viaProxy() http.HandlerFunc {
 func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "main")
 	log.Infof("Routed to main target: %+v", req)
-	s.proxies.Main.ServeHTTP(w, req)
+	s.mainProxy.ServeHTTP(w, req)
 }
 
 func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "canary")
 	log.Infof("Routed to canary target: %+v", req)
-	s.proxies.Canary.ServeHTTP(w, req)
+	s.canaryProxy.ServeHTTP(w, req)
 }
 
 func (s *Server) callSidecar(req *http.Request) (int, error) {
