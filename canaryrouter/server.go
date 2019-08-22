@@ -23,19 +23,24 @@ import (
 	"github.com/tiket-libre/canary-router/canaryrouter/instrumentation"
 )
 
-const infinityDuration time.Duration = 0x7fffffffffffffff
+const (
+	infinityDuration time.Duration = 0x7fffffffffffffff
 
-// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
-const StatusSidecarError = http.StatusServiceUnavailable
+	// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
+	StatusSidecarError = http.StatusServiceUnavailable
+
+	canaryErrorLimitTolerance = 4
+)
 
 // Server holds necessary components as a proxy server
 type Server struct {
-	version      string
-	config       config.Config
-	mainProxy    *httputil.ReverseProxy
-	canaryProxy  *httputil.ReverseProxy
-	sidecarProxy *httputil.ReverseProxy
-	canaryBucket *ratelimit.Bucket
+	version                  string
+	config                   config.Config
+	mainProxy                *httputil.ReverseProxy
+	canaryProxy              *httputil.ReverseProxy
+	sidecarProxy             *httputil.ReverseProxy
+	canaryRequestLimitBucket *ratelimit.Bucket
+	canaryErrorLimitBucket   *ratelimit.Bucket
 }
 
 // NewServer initiates a new proxy server
@@ -81,10 +86,27 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	}
 
 	if config.CircuitBreaker.RequestLimitCanary != 0 {
-		server.canaryBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
+		server.canaryRequestLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.RequestLimitCanary))
+	}
+
+	if config.CircuitBreaker.ErrorLimitCanary != 0 {
+		server.canaryErrorLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.ErrorLimitCanary))
+
+		server.canaryProxy.ModifyResponse = func(resp *http.Response) error {
+			if isErrorStatusCode(resp.StatusCode) {
+				log.Printf("error: %d", resp.StatusCode)
+				server.canaryErrorLimitBucket.TakeAvailable(1)
+			}
+
+			return nil
+		}
 	}
 
 	return server, nil
+}
+
+func isErrorStatusCode(statusCode int) bool {
+	return !(statusCode >= 200 && statusCode < 300)
 }
 
 // Run initialize a new HTTP server
@@ -117,9 +139,14 @@ func (s *Server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	s.viaProxy()(res, req)
 }
 
-// IsCanaryLimited checks if circuit breaker (canary request limiter) feature is enabled
-func (s *Server) IsCanaryLimited() bool {
-	return s.canaryBucket != nil
+// IsCanaryRequestLimited checks if circuit breaker (canary request limiter) feature is enabled
+func (s *Server) IsCanaryRequestLimited() bool {
+	return s.canaryRequestLimitBucket != nil
+}
+
+// IsCanaryErrorLimited checks if circuit breaker (canary error limiter) feature is enabled
+func (s *Server) IsCanaryErrorLimited() bool {
+	return s.canaryErrorLimitBucket != nil
 }
 
 func (s *Server) isSidecarProvided() bool {
@@ -219,8 +246,16 @@ func (s *Server) callSidecar(req *http.Request) (int, error) {
 func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		if s.IsCanaryLimited() && s.canaryBucket.Available() <= 0 {
-			req = setRoutingReason(req, "Canary limit reached")
+		if s.IsCanaryRequestLimited() && s.canaryRequestLimitBucket.Available() <= 0 {
+			req = setRoutingReason(req, "Canary request limit reached")
+
+			s.serveMain(w, req)
+			return
+		}
+
+		if s.IsCanaryErrorLimited() && s.canaryErrorLimitBucket.Available() <= 0 {
+			// log.Printf("Error reached")
+			req = setRoutingReason(req, "Canary error limit reached")
 
 			s.serveMain(w, req)
 			return
@@ -240,7 +275,7 @@ func (s *Server) viaProxyWithSidecar() http.HandlerFunc {
 			req = setRoutingReason(req, "Sidecar returns status code %d", statusCode)
 			s.serveMain(w, req)
 		case StatusCodeCanary:
-			if s.IsCanaryLimited() && s.canaryBucket.TakeAvailable(1) == 0 {
+			if s.IsCanaryRequestLimited() && s.canaryRequestLimitBucket.TakeAvailable(1) == 0 {
 				req = setRoutingReason(req, "Sidecar returns status code %d, but canary limit reached", statusCode)
 				s.serveMain(w, req)
 			} else {

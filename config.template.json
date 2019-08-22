@@ -6,7 +6,8 @@
     "sidecar-url": "http://sidecar.localhost",
     "trim-prefix": "/prefix/path/to/strip",
     "circuit-breaker": {
-        "request-limit-canary": 300
+        "request-limit-canary": 300,
+        "error-limit-canary": 500
     },
     "instrumentation": {
         "host": "127.0.0.1",
