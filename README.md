@@ -55,7 +55,8 @@ To run this, make sure you have the services involved defined in a JSON configur
     "sidecar-url": "http://sidecar.localhost/sidecar",
     "trim-prefix": "/prefix/path/to/strip",
     "circuit-breaker": {
-        "request-limit-canary": 300
+        "request-limit-canary": 300,
+        "error-limit-canary": 500
     },
     "instrumentation": {
         "host": "localhost",
@@ -72,6 +73,7 @@ To run this, make sure you have the services involved defined in a JSON configur
 | `sidecar-url`                           | URL of the sidecar service                | STRING  | Yes       |
 | `trim-prefix`                           | Trim prefix of incoming request path      | STRING  | No       |
 | `circuit-breaker.request-limit-canary`  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | INTEGER  | No        |
+| `circuit-breaker.error-limit-canary`  | If the number of bad responses (HTTP status code not 2xxx) forwarded from canary has reached on this limit, next requests will always be forwarded to Main Server. Cautious: [limitation](https://github.com/tiket-libre/canary-router/pull/36#issue-309845206)    | INTEGER  | No        |
 | `instrumentation.host` & `port`           | Host & port to access instrumentatione endpoint  | STRING  | No        |
 
 
