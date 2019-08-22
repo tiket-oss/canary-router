@@ -38,6 +38,6 @@
             "tls": {
                 "insecure-skip-verify": true
             }
-        },
+        }
     }
 }

@@ -1,4 +1,4 @@
-package server
+package canaryrouter
 
 import (
 	"fmt"
@@ -12,8 +12,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/juju/ratelimit"
-	canaryrouter "github.com/tiket-libre/canary-router"
-	"github.com/tiket-libre/canary-router/config"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
 )
 
 type restRequest struct {
@@ -57,7 +56,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary=true [then] forward to Canary because X-Canary have higher precedence", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
@@ -71,7 +70,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Main) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Main)", func(t *testing.T) {
-		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeMain, func(r *http.Request) {})
+		sideCarToMain, sideCarToMainURL := setupServer(t, emptyBodyBytes, StatusCodeMain, func(r *http.Request) {})
 		defer sideCarToMain.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToMainURL.String(), noCircuitBreakerParam))
@@ -85,7 +84,7 @@ func Test_Server_integration(t *testing.T) {
 	})
 
 	t.Run("[Given] SideCarURL (always to Canary) and X-Canary header (with bad value) [then] forward to endpoint decided by sideCar (Canary)", func(t *testing.T) {
-		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, canaryrouter.StatusCodeCanary, func(r *http.Request) {})
+		sideCarToCanary, sideCarToCanaryURL := setupServer(t, emptyBodyBytes, StatusCodeCanary, func(r *http.Request) {})
 		defer sideCarToCanary.Close()
 
 		thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarToCanaryURL.String(), noCircuitBreakerParam))
@@ -136,11 +135,11 @@ func Test_Server_integration(t *testing.T) {
 			wantBody      []byte
 		}{{
 			name:          "forward to Main",
-			argStatusCode: canaryrouter.StatusCodeMain,
+			argStatusCode: StatusCodeMain,
 			wantBody:      []byte(backendMainBody),
 		}, {
 			name:          "forward to Canary",
-			argStatusCode: canaryrouter.StatusCodeCanary,
+			argStatusCode: StatusCodeCanary,
 			wantBody:      []byte(backendCanaryBody),
 		}}
 
@@ -289,7 +288,7 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 			RequestLimitCanary: circuitBreakerParam.RequestLimitCanary,
 			ErrorLimitCanary:   circuitBreakerParam.ErrorLimitCanary,
 		}}
-	s, err := NewServer(c)
+	s, err := NewServer(c, "some-version")
 	if err != nil {
 		t.Fatal(errors.ErrorStack(err))
 	}
@@ -315,9 +314,9 @@ func setupCanaryServerFiftyFifty(t *testing.T) *httptest.Server {
 		}
 
 		if i%2 == 0 {
-			w.WriteHeader(canaryrouter.StatusCodeMain)
+			w.WriteHeader(StatusCodeMain)
 		} else {
-			w.WriteHeader(canaryrouter.StatusCodeCanary)
+			w.WriteHeader(StatusCodeCanary)
 		}
 
 	}))
