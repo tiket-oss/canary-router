@@ -23,10 +23,14 @@ import (
 	"github.com/tiket-libre/canary-router/canaryrouter/instrumentation"
 )
 
-const infinityDuration time.Duration = 0x7fffffffffffffff
+const (
+	infinityDuration time.Duration = 0x7fffffffffffffff
 
-// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
-const StatusSidecarError = http.StatusServiceUnavailable
+	// StatusSidecarError means there is an error when proceeding request forwarded to sidecar
+	StatusSidecarError = http.StatusServiceUnavailable
+
+	canaryErrorLimitTolerance = 4
+)
 
 // Server holds necessary components as a proxy server
 type Server struct {

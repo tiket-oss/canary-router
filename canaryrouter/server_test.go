@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/juju/errors"
-	"github.com/juju/ratelimit"
 	"github.com/tiket-libre/canary-router/canaryrouter/config"
 )
 
@@ -195,7 +194,7 @@ func Test_Server_integration(t *testing.T) {
 		t.Run("request-limit-canary", func(t *testing.T) {
 			canaryRequestLimit := uint64(45)
 
-			sideCarServerFiftyFifty := setupCanaryServerFiftyFifty(t)
+			sideCarServerFiftyFifty := setupSidecarServerFiftyFifty(t)
 			defer sideCarServerFiftyFifty.Close()
 
 			thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanary.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{RequestLimitCanary: canaryRequestLimit}))
@@ -218,29 +217,16 @@ func Test_Server_integration(t *testing.T) {
 			canaryErrorLimit := uint64(15)
 
 			backendCanaryWithErrorBody := "Hello, I'm Canary (but broken)!"
-			bucketGoodRequest := ratelimit.NewBucket(infinityDuration, int64(canaryErrorLimit))
-			backendCanaryWithError := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if bucketGoodRequest.TakeAvailable(1) > 0 {
-					w.WriteHeader(http.StatusOK)
-				} else {
-					w.WriteHeader(http.StatusInternalServerError)
-				}
-
-				_, err := w.Write([]byte(backendCanaryWithErrorBody))
-				if err != nil {
-					t.Fatal(err)
-				}
-				// time.Sleep(1 * time.Millisecond)
-			}))
+			backendCanaryWithError, _ := setupServer(t, []byte(backendCanaryWithErrorBody), http.StatusInternalServerError, func(r *http.Request) {})
 			defer backendCanaryWithError.Close()
 
-			sideCarServerFiftyFifty := setupCanaryServerFiftyFifty(t)
+			sideCarServerFiftyFifty := setupSidecarServerFiftyFifty(t)
 			defer sideCarServerFiftyFifty.Close()
 
 			thisRouter := httptest.NewServer(setupThisRouterServer(t, backendMain.URL, backendCanaryWithError.URL, sideCarServerFiftyFifty.URL, circuitBreakerParam{ErrorLimitCanary: canaryErrorLimit}))
 			defer thisRouter.Close()
 
-			totalRequest := 100
+			totalRequest := 120
 			var listRestRequest []restRequest
 			for i := 1; i <= totalRequest; i++ {
 				listRestRequest = append(listRestRequest, restRequest{httpHeader: http.Header{}, httpMethod: http.MethodPost, targetURL: thisRouter.URL + "/foo/bar", bodyPayload: fmt.Sprintf("%d", i)})
@@ -248,8 +234,11 @@ func Test_Server_integration(t *testing.T) {
 
 			gotMainCount, gotCanaryCount := restClientCallConcurrentlyToMainAndCanary(t, thisRouter.Client(), backendMainBody, backendCanaryWithErrorBody, listRestRequest)
 
-			if (uint64(gotCanaryCount) != canaryErrorLimit) || (gotMainCount != (totalRequest - gotCanaryCount)) {
-				t.Errorf("gotCanaryCount:%d gotMainCount:%d canaryErrorLimit:%d totalRequest:%d", gotCanaryCount, gotMainCount, canaryErrorLimit, totalRequest)
+			msg := fmt.Sprintf("gotCanaryCount:%d gotMainCount:%d canaryErrorLimit:%d totalRequest:%d CanaryErrorLimitTolerance:%d", gotCanaryCount, gotMainCount, canaryErrorLimit, totalRequest, canaryErrorLimitTolerance)
+			t.Logf(msg)
+
+			if (uint64(gotCanaryCount) > (canaryErrorLimit * canaryErrorLimitTolerance)) || (gotMainCount != (totalRequest - gotCanaryCount)) {
+				t.Errorf(msg)
 			}
 
 		})
@@ -298,7 +287,7 @@ func setupThisRouterServer(t *testing.T, backendMainURL, backendCanaryURL string
 
 // Create a mock canary server that give responses with 50:50 distribution for canaryrouter.StatusCodeMain and canaryrouter.StatusCodeCanary.
 // Make sure sidecar.OriginRequest.Body from rest client has only integer value.
-func setupCanaryServerFiftyFifty(t *testing.T) *httptest.Server {
+func setupSidecarServerFiftyFifty(t *testing.T) *httptest.Server {
 	t.Helper()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
