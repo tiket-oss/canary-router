@@ -2,57 +2,22 @@ package canaryrouter
 
 import (
 	"crypto/tls"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"time"
 
-	"github.com/tiket-libre/canary-router/canaryrouter/config"
-
 	"github.com/juju/errors"
+	"github.com/tiket-libre/canary-router/canaryrouter/config"
 )
 
-// Proxy holds the reference to instance of Main and Canary httputil.ReverseProxy
-// that is going to be used to route traffi	c
-type Proxy struct { // TODO: remove this class
-	Main   *httputil.ReverseProxy
-	Canary *httputil.ReverseProxy
-}
-
-// BuildProxies constructs a Proxy object with mainTargetURL as the URL for Main proxy
-// and canaryTargetURL as the URL for Canary proxy
-func BuildProxies(configClient config.HTTPClientConfig, mainTargetURL, mainHeaderHost, canaryTargetURL, canaryHeaderHost string) (*Proxy, error) {
-
-	proxyMain, err := newReverseProxy(mainTargetURL, mainHeaderHost)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	proxyMain.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression, configClient.TLS)
-	proxyMain.ErrorLog = log.New(os.Stderr, "[proxy-main] ", log.LstdFlags|log.Llongfile)
-
-	proxyCanary, err := newReverseProxy(canaryTargetURL, canaryHeaderHost)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	proxyCanary.Transport = newTransport(configClient.MaxIdleConns, configClient.IdleConnTimeout, configClient.DisableCompression, configClient.TLS)
-	proxyCanary.ErrorLog = log.New(os.Stderr, "[proxy-canary] ", log.LstdFlags|log.Llongfile)
-
-	proxies := &Proxy{
-		Main:   proxyMain,
-		Canary: proxyCanary,
-	}
-
-	return proxies, nil
-}
-
-func newTransport(maxIdleConns, idleConnTimeout int, disableCompression bool, tlsConfig config.TLS) *http.Transport {
+func newTransport(clientConfig config.HTTPClientConfig) *http.Transport {
 	return &http.Transport{
-		MaxIdleConns:       maxIdleConns,
-		IdleConnTimeout:    time.Duration(idleConnTimeout) * time.Second,
-		DisableCompression: disableCompression,
-		TLSClientConfig:    &tls.Config{InsecureSkipVerify: tlsConfig.InsecureSkipVerify},
+		ResponseHeaderTimeout: time.Duration(clientConfig.Timeout) * time.Second,
+		MaxIdleConns:          clientConfig.MaxIdleConns,
+		IdleConnTimeout:       time.Duration(clientConfig.IdleConnTimeout) * time.Second,
+		DisableCompression:    clientConfig.DisableCompression,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: clientConfig.TLS.InsecureSkipVerify},
 	}
 }
 
