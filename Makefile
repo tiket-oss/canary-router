@@ -35,6 +35,10 @@ integration-test:
 build:
 	go build -v -o bin/$(TARGET) ./cmd/
 
+.PHONY: run
+run:
+	go run -v ./cmd/ -c config.template.json
+
 .PHONY: format
 format:
 	go fmt ./...
