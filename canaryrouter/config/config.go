@@ -8,7 +8,6 @@ type Config struct {
 	CanaryTarget     string `mapstructure:"canary-target"`
 	CanaryHeaderHost string `mapstructure:"canary-header-host"`
 	SidecarURL       string `mapstructure:"sidecar-url"`
-	LogLevel         string `mapstructure:"log-level"`
 
 	// TrimPrefix if set will modify subsequent request path to main, canary, and sidecar service
 	// by removing TrimPrefix substring in the request path string
@@ -26,6 +25,8 @@ type Config struct {
 	Instrumentation InstrumentationConfig `mapstructure:"instrumentation"`
 	Server          HTTPServerConfig      `mapstructure:"router-server"`
 	Client          MultiHTTPClientConfig `mapstructure:"proxy-client"`
+
+	Log Log `mapstructure:"log"`
 }
 
 // InstrumentationConfig holds the configuration values specific to the instrumentation aspect.
@@ -67,4 +68,10 @@ type HTTPClientConfig struct {
 // TLS holds the configuration of TLS
 type TLS struct {
 	InsecureSkipVerify bool `mapstructure:"insecure-skip-verify"`
+}
+
+// Log holds the configuration values specific to the logging aspect.
+type Log struct {
+	Level            string `mapstructure:"level"`
+	DebugRequestBody bool   `mapstructure:"debug-request-body"`
 }

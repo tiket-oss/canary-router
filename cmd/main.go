@@ -23,7 +23,10 @@ var (
 	cfgFile   string
 
 	defaultConfig = config.Config{
-		LogLevel: "info",
+		Log: config.Log{
+			Level:            "info",
+			DebugRequestBody: false,
+		},
 		Server: config.HTTPServerConfig{
 			ReadTimeout:  5,
 			WriteTimeout: 15,
@@ -87,7 +90,7 @@ func initConfig() {
 		log.Fatalf("Unable to set default values: %v", errors.ErrorStack(err))
 	}
 
-	logLevel, err := log.ParseLevel(appConfig.LogLevel)
+	logLevel, err := log.ParseLevel(appConfig.Log.Level)
 	if err != nil {
 		log.Fatalf("'log' level is not recognized")
 	}

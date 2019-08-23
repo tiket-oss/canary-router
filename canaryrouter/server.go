@@ -214,7 +214,7 @@ func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "main")
 
 	if log.IsLevelEnabled(log.DebugLevel) {
-		logRequest("main", req)
+		s.logRequest("main", req)
 	}
 
 	s.mainProxy.ServeHTTP(w, req)
@@ -224,14 +224,14 @@ func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "canary")
 
 	if log.IsLevelEnabled(log.DebugLevel) {
-		logRequest("canary", req)
+		s.logRequest("canary", req)
 	}
 
 	s.canaryProxy.ServeHTTP(w, req)
 }
 
-func logRequest(target string, req *http.Request) {
-	dumpReq, err := httputil.DumpRequest(req, true)
+func (s *Server) logRequest(target string, req *http.Request) {
+	dumpReq, err := httputil.DumpRequest(req, s.config.Log.DebugRequestBody)
 	if err != nil {
 		log.WithField("to", target).Infof("Failed to dump request")
 	} else {
