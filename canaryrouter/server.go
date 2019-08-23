@@ -57,6 +57,10 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	}
 	mainProxy.Transport = newTransport(config.Client.MainAndCanary)
 	mainProxy.ErrorLog = stdlog.New(os.Stderr, "[proxy-main] ", stdlog.LstdFlags|stdlog.Llongfile)
+	mainProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+		log.WithField("proxy", "main").Infof("http: proxy error: %v", err)
+		w.WriteHeader(http.StatusBadGateway)
+	}
 	server.mainProxy = mainProxy
 
 	// === init canary proxy ===
@@ -66,6 +70,10 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	}
 	canaryProxy.Transport = newTransport(config.Client.MainAndCanary)
 	canaryProxy.ErrorLog = stdlog.New(os.Stderr, "[proxy-canary] ", stdlog.LstdFlags|stdlog.Llongfile)
+	canaryProxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+		log.WithField("proxy", "canary").Infof("http: proxy error: %v", err)
+		w.WriteHeader(http.StatusBadGateway)
+	}
 	server.canaryProxy = canaryProxy
 
 	// === init sidecar proxy ===
@@ -94,7 +102,7 @@ func NewServer(config config.Config, version string) (*Server, error) {
 
 		server.canaryProxy.ModifyResponse = func(resp *http.Response) error {
 			if isErrorStatusCode(resp.StatusCode) {
-				log.Printf("error: %d", resp.StatusCode)
+				log.Printf("Canary returns non 2xx. StatusCode:%d Status:%s", resp.StatusCode, resp.Status)
 				server.canaryErrorLimitBucket.TakeAvailable(1)
 			}
 
@@ -204,14 +212,31 @@ func (s *Server) viaProxy() http.HandlerFunc {
 
 func (s *Server) serveMain(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "main")
-	log.Infof("Routed to main target: %+v", req)
+
+	if log.IsLevelEnabled(log.DebugLevel) {
+		logRequest("main", req)
+	}
+
 	s.mainProxy.ServeHTTP(w, req)
 }
 
 func (s *Server) serveCanary(w http.ResponseWriter, req *http.Request) {
 	defer s.recordMetricTarget(req.Context(), "canary")
-	log.Infof("Routed to canary target: %+v", req)
+
+	if log.IsLevelEnabled(log.DebugLevel) {
+		logRequest("canary", req)
+	}
+
 	s.canaryProxy.ServeHTTP(w, req)
+}
+
+func logRequest(target string, req *http.Request) {
+	dumpReq, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		log.WithField("to", target).Infof("Failed to dump request")
+	} else {
+		log.WithField("to", target).Debugf("%+v", string(dumpReq))
+	}
 }
 
 func (s *Server) callSidecar(req *http.Request) (int, error) {

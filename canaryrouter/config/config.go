@@ -8,6 +8,7 @@ type Config struct {
 	CanaryTarget     string `mapstructure:"canary-target"`
 	CanaryHeaderHost string `mapstructure:"canary-header-host"`
 	SidecarURL       string `mapstructure:"sidecar-url"`
+	LogLevel         string `mapstructure:"log-level"`
 
 	// TrimPrefix if set will modify subsequent request path to main, canary, and sidecar service
 	// by removing TrimPrefix substring in the request path string

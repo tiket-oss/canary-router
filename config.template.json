@@ -5,6 +5,7 @@
     "canary-header-host": "server-micro",
     "sidecar-url": "http://sidecar.localhost",
     "trim-prefix": "/prefix/path/to/strip",
+    "log-level": "info",
     "circuit-breaker": {
         "request-limit-canary": 300,
         "error-limit-canary": 500
