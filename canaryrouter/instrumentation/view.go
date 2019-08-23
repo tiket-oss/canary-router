@@ -2,7 +2,7 @@ package instrumentation
 
 import (
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/juju/errors"

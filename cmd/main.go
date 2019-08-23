@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/imdario/mergo"
 	"github.com/juju/errors"
@@ -22,6 +23,10 @@ var (
 	cfgFile   string
 
 	defaultConfig = config.Config{
+		Log: config.Log{
+			Level:            "info",
+			DebugRequestBody: false,
+		},
 		Server: config.HTTPServerConfig{
 			ReadTimeout:  5,
 			WriteTimeout: 15,
@@ -69,12 +74,7 @@ func main() {
 }
 
 func initConfig() {
-	// Don't forget to read config either from cfgFile or from home directory!
 	viper.SetConfigFile(cfgFile)
-
-	log.Printf("Canary Router version: %s", multiStageVersion())
-	log.Printf("Loaded with config file: %s", cfgFile)
-
 	viper.SetConfigType("json")
 	viper.AutomaticEnv()
 
@@ -90,6 +90,17 @@ func initConfig() {
 		log.Fatalf("Unable to set default values: %v", errors.ErrorStack(err))
 	}
 
+	logLevel, err := log.ParseLevel(appConfig.Log.Level)
+	if err != nil {
+		log.Fatalf("'log' level is not recognized")
+	}
+
+	log.SetLevel(logLevel)
+	log.SetOutput(os.Stdout)
+	log.SetFormatter(&log.JSONFormatter{FieldMap: log.FieldMap{log.FieldKeyTime: "@time"}})
+
+	log.Printf("Canary Router version: %s", multiStageVersion())
+	log.Printf("Loaded with config file: %s", cfgFile)
 	log.Printf("%+v", appConfig)
 }
 
