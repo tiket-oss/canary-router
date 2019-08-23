@@ -65,17 +65,7 @@ To run this, make sure you have the services involved defined in a JSON configur
 }
 ```
 
-| Field                                 | Description                               | Type    | Mandatory |
-| --------------------                  | ----------------------------------------- | ------- | --------- |
-| `router-server.host` & `port`             | Host & port that are used to serve Canary Router | STRING | Yes       |
-| `main-target`                           | URL of the old/secondary service          | STRING  | Yes       |
-| `canary-target`                         | URL of the new/primary service            | STRING  | Yes       |
-| `sidecar-url`                           | URL of the sidecar service                | STRING  | Yes       |
-| `trim-prefix`                           | Trim prefix of incoming request path      | STRING  | No       |
-| `circuit-breaker.request-limit-canary`  | If the number of requests forwarded to canary has reached on this limit, next requests will always be forwarded to Main Server   | INTEGER  | No        |
-| `circuit-breaker.error-limit-canary`  | If the number of bad responses (HTTP status code not 2xxx) forwarded from canary has reached on this limit, next requests will always be forwarded to Main Server. Cautious: [limitation](https://github.com/tiket-libre/canary-router/pull/36#issue-309845206)    | INTEGER  | No        |
-| `instrumentation.host` & `port`           | Host & port to access instrumentatione endpoint  | STRING  | No        |
-
+See [Configuration](#Configuration) for more detail.
 
 After filling out the configuration file, provide its path in the `-c` or `--config` flag to run the canary router:
 
@@ -95,3 +85,49 @@ Instrumentation in Canary Router is build according to [OpenCensus](https://open
 | ----------------------------- | ------------------------------------------- | ----- |
 | canary_router_request_count   | The count of requests per target            | count |
 | canary_router_request_latency | The latency distribution per request target | ms    |
+
+
+## Configuration
+
+(See [config.template.json](config.template.json) for other possible configurations)
+
+- `router-server.host` & `router-server.port` (STRING) (**required**)
+    
+    Host & port that are used to serve Canary Router
+
+- `main-target` (STRING) (**required**)
+    
+    URL of the old/existing service
+
+- `canary-target` (STRING) (**required**)
+    
+    URL of the new service
+
+- `sidecar-url` (STRING) (**required**)
+    
+    URL of the sidecar service
+
+- `trim-prefix` (STRING)
+
+    Trim prefix of incoming request path
+
+- `circuit-breaker.request-limit-canary` (INTEGER)
+
+    If the number of requests forwarded to canary has reached on this limit, the next requests will always be forwarded to Main Server
+
+- `circuit-breaker.error-limit-canary` (INTEGER)
+
+   If the number of bad responses (HTTP status code not 2xxx) forwarded from canary has reached on this limit, next requests will always be forwarded to Main Server. Cautious: [limitation](https://github.com/tiket-libre/canary-router/pull/36#issue-309845206) 
+
+- `instrumentation.host` & `instrumentation.port` (STRING)
+
+    Host & port to access instrumentation endpoint
+
+- `log.level` (STRING) (default: `"info"`) (possible values: `"info"`, `"debug"`)
+
+    - `"debug"`: print every HTTP requests forwarded to main or canary service (without HTTP request body)
+
+- `log.debug-request-body"` (BOOLEAN) (default: `false`)
+
+    If `log.level`: `"debug"` and `log.debug-request-body`: `true`, it also print the body of HTTP requests.
+
