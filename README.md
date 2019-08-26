@@ -30,14 +30,7 @@ This way the Canary Router will be decoupled from any dependency that might occu
 ![Canary Router designl](https://user-images.githubusercontent.com/55460/62674501-dd5f7b80-b9cc-11e9-8174-4903c6f1beeb.png)
 
 ## Installation
-
-- If you have Go installed, run the following command:
-
-```sh
-go get -u -v github.com/tiket-libre/canary-router
-```
-
-- or download the binary : [Latest Binary](https://github.com/tiket-libre/canary-router/releases/latest)
+Download the binary : [Latest Binary](https://github.com/tiket-libre/canary-router/releases/latest)
 
 
 ## Usage
