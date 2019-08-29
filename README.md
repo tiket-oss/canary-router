@@ -1,7 +1,6 @@
 [![Build Status](https://travis-ci.com/tiket-libre/canary-router.svg?branch=master)](https://travis-ci.com/tiket-libre/canary-router)
 [![codecov](https://codecov.io/gh/tiket-libre/canary-router/branch/master/graph/badge.svg)](https://codecov.io/gh/tiket-libre/canary-router)
 
-
 # Canary Router
 
 Canary Router is a reverse proxy that forwards HTTP requests to one of the two endpoints based on arbitrary logic provided by additional "sidecar" server.
@@ -29,9 +28,13 @@ This way the Canary Router will be decoupled from any dependency that might occu
 
 ![Canary Router designl](https://user-images.githubusercontent.com/55460/62674501-dd5f7b80-b9cc-11e9-8174-4903c6f1beeb.png)
 
+### `X-Canary` HTTP Header
+If `X-Canary` HTTP Header is set, Canary Sidecar is not considered :
+- `X-Canary: true` : http request is directly forwarded to Canary Server
+- `X-Canary: false` : http request is directly forwarded to Main Server
+
 ## Installation
 Download the binary : [Latest Binary](https://github.com/tiket-libre/canary-router/releases/latest)
-
 
 ## Usage
 
