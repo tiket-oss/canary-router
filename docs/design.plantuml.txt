@@ -31,7 +31,7 @@ fork ==^ microservices : if 200
 
 canary_router_01 -- fork
 
-canary_router_01 --> canary_sidecar_01 : POST\nsidecar.OriginRequest:\n-Method\n-URL\n-Header\n-Body
+canary_router_01 --> canary_sidecar_01 : incoming request\nHTTP Request:\n-Method\n-URL\n-Header\n-Body
 canary_sidecar_01 --> canary_router_01 : resp code:\n- 204 (main)\n- 200 (canary)
 
 @enduml

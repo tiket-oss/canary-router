@@ -26,7 +26,7 @@ This sidecar service will hold the logic on how to route the traffic, and provid
 
 This way the Canary Router will be decoupled from any dependency that might occur as a result of the routing logic. The sidecar service on the other hand, are free to access external resource to determine where should the traffic be routed. Keep in mind that by doing so we might damage the application performance dramatically.
 
-![Canary Router designl](https://user-images.githubusercontent.com/55460/62674501-dd5f7b80-b9cc-11e9-8174-4903c6f1beeb.png)
+![Canary Router design](https://user-images.githubusercontent.com/55460/64143221-4524ad00-ce39-11e9-8546-1186509ccf84.png)
 
 ### `X-Canary` HTTP Header
 
