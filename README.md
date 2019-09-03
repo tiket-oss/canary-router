@@ -1,7 +1,7 @@
+# Canary Router
+
 [![Build Status](https://travis-ci.com/tiket-libre/canary-router.svg?branch=master)](https://travis-ci.com/tiket-libre/canary-router)
 [![codecov](https://codecov.io/gh/tiket-libre/canary-router/branch/master/graph/badge.svg)](https://codecov.io/gh/tiket-libre/canary-router)
-
-# Canary Router
 
 Canary Router is a reverse proxy that forwards HTTP requests to one of the two endpoints based on arbitrary logic provided by additional "sidecar" server.
 
@@ -29,11 +29,14 @@ This way the Canary Router will be decoupled from any dependency that might occu
 ![Canary Router designl](https://user-images.githubusercontent.com/55460/62674501-dd5f7b80-b9cc-11e9-8174-4903c6f1beeb.png)
 
 ### `X-Canary` HTTP Header
+
 If `X-Canary` HTTP Header is set, Canary Sidecar is not considered :
+
 - `X-Canary: true` : http request is directly forwarded to Canary Server
 - `X-Canary: false` : http request is directly forwarded to Main Server
 
 ## Installation
+
 Download the binary : [Latest Binary](https://github.com/tiket-libre/canary-router/releases/latest)
 
 ## Usage
@@ -82,48 +85,46 @@ Instrumentation in Canary Router is build according to [OpenCensus](https://open
 | canary_router_request_count   | The count of requests per target            | count |
 | canary_router_request_latency | The latency distribution per request target | ms    |
 
-
 ## Configuration
 
 (See [config.template.json](config.template.json) for other possible configurations)
 
 - `router-server.host` & `router-server.port` (STRING) (**required**)
-    
-    Host & port that are used to serve Canary Router
+  
+  Host & port that are used to serve Canary Router
 
 - `main-target` (STRING) (**required**)
-    
-    URL of the old/existing service
+  
+  URL of the old/existing service
 
 - `canary-target` (STRING) (**required**)
-    
-    URL of the new service
+  
+  URL of the new service
 
 - `sidecar-url` (STRING) (**required**)
-    
-    URL of the sidecar service
+  
+  URL of the sidecar service
 
 - `trim-prefix` (STRING)
 
-    Trim prefix of incoming request path
+  Trim prefix of incoming request path
 
 - `circuit-breaker.request-limit-canary` (INTEGER)
 
-    If the number of requests forwarded to canary has reached on this limit, the next requests will always be forwarded to Main Server
+  If the number of requests forwarded to canary has reached on this limit, the next requests will always be forwarded to Main Server
 
 - `circuit-breaker.error-limit-canary` (INTEGER)
 
-   If the number of bad responses (HTTP status code not 2xxx) forwarded from canary has reached on this limit, next requests will always be forwarded to Main Server. Cautious: [limitation](https://github.com/tiket-libre/canary-router/pull/36#issue-309845206) 
+  If the number of bad responses (HTTP status code not 2xxx) forwarded from canary has reached on this limit, next requests will always be forwarded to Main Server. Cautious: [limitation](https://github.com/tiket-libre/canary-router/pull/36#issue-309845206)
 
 - `instrumentation.host` & `instrumentation.port` (STRING)
 
-    Host & port to access instrumentation endpoint
+  Host & port to access instrumentation endpoint
 
 - `log.level` (STRING) (default: `"info"`) (possible values: `"info"`, `"debug"`)
 
-    - `"debug"`: print every HTTP requests forwarded to main or canary service (without HTTP request body)
+  - `"debug"`: print every HTTP requests forwarded to main or canary service (without HTTP request body)
 
 - `log.debug-request-body"` (BOOLEAN) (default: `false`)
 
-    If `log.level`: `"debug"` and `log.debug-request-body`: `true`, it also print the body of HTTP requests.
-
+  If `log.level`: `"debug"` and `log.debug-request-body`: `true`, it also print the body of HTTP requests.
