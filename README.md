@@ -76,6 +76,8 @@ canary-router -c config.json
 
 Full Example: [sample/canary-sidecar/main.go](sample/canary-sidecar/main.go)
 
+*Note*: Canary Sidecar endpoint have to catch all of its subroutes (wildcard route). In Go HTTP standard library, it have to be ended with a slash. (e.g. `/sidecar/`, not `/sidecar`)
+
 ## Instrumentation
 
 Instrumentation in Canary Router is build according to [OpenCensus](https://opencensus.io/) standards and only supports [Prometheus](https://prometheus.io/) as its monitoring systems. Currently the following views are available:
