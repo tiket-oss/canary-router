@@ -1,7 +1,6 @@
 package config
 
 // Config holds the configuration values to be used throughout the application.
-// TODO: add logrus level
 type Config struct {
 	MainTarget       string `mapstructure:"main-target"`
 	MainHeaderHost   string `mapstructure:"main-header-host"`
