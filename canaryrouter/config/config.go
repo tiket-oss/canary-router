@@ -71,6 +71,7 @@ type TLS struct {
 
 // Log holds the configuration values specific to the logging aspect.
 type Log struct {
-	Level            string `mapstructure:"level"`
-	DebugRequestBody bool   `mapstructure:"debug-request-body"`
+	Level             string `mapstructure:"level"`
+	DebugRequestBody  bool   `mapstructure:"debug-request-body"`
+	DebugResponseBody bool   `mapstructure:"debug-response-body"`
 }
