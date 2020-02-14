@@ -100,7 +100,12 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	if config.CircuitBreaker.ErrorLimitCanary != 0 {
 		server.canaryErrorLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.ErrorLimitCanary))
 
+		currentModifyResponse := server.canaryProxy.ModifyResponse
 		server.canaryProxy.ModifyResponse = func(resp *http.Response) error {
+			if currentModifyResponse != nil {
+				_ = currentModifyResponse(resp)
+			}
+
 			if isErrorStatusCode(resp.StatusCode) {
 				log.Printf("Canary returns non 2xx. StatusCode:%d Status:%s", resp.StatusCode, resp.Status)
 				server.canaryErrorLimitBucket.TakeAvailable(1)
