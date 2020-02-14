@@ -129,4 +129,9 @@ Instrumentation in Canary Router is build according to [OpenCensus](https://open
 
 - `log.debug-request-body"` (BOOLEAN) (default: `false`)
 
-  If `log.level`: `"debug"` and `log.debug-request-body`: `true`, it also print the body of HTTP requests.
+  If `log.level`: `"debug"` and `log.debug-request-body`: `true`, it also print the body of HTTP request.
+
+- `log.debug-response-body"` (BOOLEAN) (default: `false`)
+
+  If `log.level`: `"debug"` and `log.debug-response-body`: `true`, it also print the body of HTTP response.
+  
