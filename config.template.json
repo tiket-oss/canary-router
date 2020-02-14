@@ -42,6 +42,7 @@
     },
     "log": {
         "level": "info",
-        "debug-request-body": false
+        "debug-request-body": false,
+        "debug-response-body": false
     }
 }
