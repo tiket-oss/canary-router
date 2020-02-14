@@ -51,7 +51,7 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	}
 
 	// === init main proxy ===
-	mainProxy, err := newReverseProxy(config.MainTarget, config.MainHeaderHost)
+	mainProxy, err := newReverseProxy(config.MainTarget, config.MainHeaderHost, config.Log.DebugResponseBody)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -64,7 +64,7 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	server.mainProxy = mainProxy
 
 	// === init canary proxy ===
-	canaryProxy, err := newReverseProxy(config.CanaryTarget, config.CanaryHeaderHost)
+	canaryProxy, err := newReverseProxy(config.CanaryTarget, config.CanaryHeaderHost, config.Log.DebugResponseBody)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -78,7 +78,7 @@ func NewServer(config config.Config, version string) (*Server, error) {
 
 	// === init sidecar proxy ===
 	if server.isSidecarProvided() {
-		sidecarProxy, err := newReverseProxy(config.SidecarURL, "")
+		sidecarProxy, err := newReverseProxy(config.SidecarURL, "", config.Log.DebugResponseBody)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -100,7 +100,12 @@ func NewServer(config config.Config, version string) (*Server, error) {
 	if config.CircuitBreaker.ErrorLimitCanary != 0 {
 		server.canaryErrorLimitBucket = ratelimit.NewBucket(infinityDuration, int64(config.CircuitBreaker.ErrorLimitCanary))
 
+		currentModifyResponse := server.canaryProxy.ModifyResponse
 		server.canaryProxy.ModifyResponse = func(resp *http.Response) error {
+			if currentModifyResponse != nil {
+				_ = currentModifyResponse(resp)
+			}
+
 			if isErrorStatusCode(resp.StatusCode) {
 				log.Printf("Canary returns non 2xx. StatusCode:%d Status:%s", resp.StatusCode, resp.Status)
 				server.canaryErrorLimitBucket.TakeAvailable(1)

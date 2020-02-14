@@ -39,7 +39,7 @@ func Test_newReverseProxy(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 
-				got, err := newReverseProxy(c.urlTarget, "")
+				got, err := newReverseProxy(c.urlTarget, "", false)
 
 				if (err != nil) != c.wantErr {
 					t.Errorf("newReverseProxy() error = %v, wantErr %v", err, c.wantErr)

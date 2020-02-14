@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/juju/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/tiket-libre/canary-router/canaryrouter/config"
 )
 
@@ -21,7 +22,7 @@ func newTransport(clientConfig config.HTTPClientConfig) *http.Transport {
 	}
 }
 
-func newReverseProxy(target, customHost string) (*httputil.ReverseProxy, error) {
+func newReverseProxy(target, customHost string, dumpResponse bool) (*httputil.ReverseProxy, error) {
 	url, err := url.ParseRequestURI(target)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -36,6 +37,18 @@ func newReverseProxy(target, customHost string) (*httputil.ReverseProxy, error) 
 			req.Host = customHost
 		} else {
 			req.Host = req.URL.Host
+		}
+	}
+	if log.IsLevelEnabled(log.DebugLevel) {
+		proxy.ModifyResponse = func(res *http.Response) error {
+			dumpRes, err := httputil.DumpResponse(res, dumpResponse)
+			if err != nil {
+				log.WithField("from", target).Infof("Failed to dump request")
+			} else {
+				log.WithField("from", target).Debugf("%+v", string(dumpRes))
+			}
+
+			return nil
 		}
 	}
 
